@@ -1,0 +1,402 @@
+/* ═══════════════════════════════════════════════════════════════
+   Masar Chat Widget  —  ChatWidget.css
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── FAB زرار الشات الطافي ─────────────────────────────────── */
+/* ── Wrapper الطافي (يتحكم في الموضع) ───────────────────────── */
+.mcw-fab-wrap {
+  position: fixed;
+  bottom: 24px;
+  z-index: 9998;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+.mcw-fab-wrap--rtl { right: 24px; left: auto; align-items: flex-end; }
+.mcw-fab-wrap--ltr { left: 24px;  right: auto; align-items: flex-start; }
+
+/* ── فقاعة "تحدث مع فريق مسار" ─────────────────────────────── */
+.mcw-label-bubble {
+  background: var(--gold, #C8932B);
+  color: #fff;
+  font-family: 'Cairo', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 15px;
+  border-radius: 20px 20px 4px 20px;
+  white-space: nowrap;
+  box-shadow: 0 4px 16px rgba(200, 147, 43, 0.4);
+  pointer-events: none;
+  position: relative;
+  animation: bubblePop 5s ease-in-out infinite;
+  transform-origin: bottom right;
+}
+.mcw-label-bubble::after {
+  content: '';
+  position: absolute;
+  bottom: -7px;
+  right: 16px;
+  border: 6px solid transparent;
+  border-top-color: var(--gold, #C8932B);
+  border-bottom: none;
+}
+.mcw-fab-wrap--rtl .mcw-label-bubble {
+  border-radius: 20px 20px 4px 20px;
+  transform-origin: bottom right;
+}
+.mcw-fab-wrap--rtl .mcw-label-bubble::after {
+  right: 16px;
+  left: auto;
+}
+@keyframes bubblePop {
+  0%   { opacity: 0; transform: scale(0.75) translateY(8px); }
+  12%  { opacity: 1; transform: scale(1.05) translateY(-2px); }
+  18%  { opacity: 1; transform: scale(1) translateY(0); }
+  72%  { opacity: 1; transform: scale(1) translateY(0); }
+  88%  { opacity: 0; transform: scale(0.85) translateY(5px); }
+  100% { opacity: 0; transform: scale(0.75) translateY(8px); }
+}
+
+.mcw-fab {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  background: var(--gold, #C8932B);
+  color: #fff;
+  box-shadow: 0 4px 18px rgba(200, 147, 43, 0.45);
+  transition: transform .2s, box-shadow .2s;
+}
+/* هذي الكلاسات بقت فاضية — الـ wrapper بيتحكم في الجهة */
+.mcw-fab--rtl { }
+.mcw-fab--ltr { }
+
+.mcw-fab:hover { transform: scale(1.08); box-shadow: 0 6px 22px rgba(200,147,43,.55); }
+.mcw-fab--open { background: var(--ink, #13213B); box-shadow: 0 4px 14px rgba(0,0,0,.3); }
+
+/* badge عدد غير المقروءة */
+.mcw-badge {
+  position: absolute;
+  top: 2px; right: 2px;
+  min-width: 18px; height: 18px;
+  border-radius: 9px;
+  background: #e53e3e;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 4px;
+}
+
+/* ── نافذة الشات ─────────────────────────────────────────────── */
+.mcw-window {
+  position: fixed;
+  bottom: 92px;
+  z-index: 9997;
+}
+/* RTL → تفتح من اليمين */
+.mcw-window--rtl { right: 24px; left: auto; }
+/* LTR → تفتح من اليسار */
+.mcw-window--ltr { left: 24px;  right: auto; }
+
+.mcw-window {
+  width: 340px;
+  max-height: 560px;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 12px 48px rgba(19,33,59,.18);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: 'Cairo', sans-serif;
+  animation: mcw-pop .22s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes mcw-pop {
+  from { opacity: 0; transform: translateY(16px) scale(.96); }
+  to   { opacity: 1; transform: translateY(0)   scale(1);    }
+}
+
+/* ── Header ───────────────────────────────────────────────────── */
+.mcw-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 14px 12px;
+  background: var(--ink, #13213B);
+  color: #fff;
+  flex-shrink: 0;
+}
+.mcw-av {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: var(--gold, #C8932B);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 800; color: var(--ink, #13213B);
+  flex-shrink: 0;
+}
+.mcw-hinfo { flex: 1; min-width: 0; }
+.mcw-hname { font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mcw-hstatus { display: flex; align-items: center; gap: 5px; font-size: 11px; opacity: .75; margin-top: 1px; }
+.mcw-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.mcw-dot--on  { background: #48bb78; }
+.mcw-dot--off { background: #a0aec0; }
+.mcw-close-btn {
+  background: none; border: none; cursor: pointer;
+  color: rgba(255,255,255,.6); font-size: 16px; padding: 4px;
+  display: flex; align-items: center;
+  transition: color .15s;
+}
+.mcw-close-btn:hover { color: #fff; }
+
+/* ── تنبيه خارج أوقات العمل ──────────────────────────────────── */
+.mcw-offline {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 9px 14px;
+  background: #fffbeb;
+  font-size: 11.5px;
+  color: #92400e;
+  border-bottom: 1px solid #fde68a;
+  flex-shrink: 0;
+}
+.mcw-offline a { color: var(--teal, #2F7B6E); font-weight: 700; text-decoration: none; }
+.mcw-offline a:hover { text-decoration: underline; }
+
+/* ── تحية شخصية ──────────────────────────────────────────────── */
+.mcw-greeting {
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--teal, #2F7B6E);
+  background: #f0faf8;
+  border-bottom: 1px solid #d1ede8;
+  flex-shrink: 0;
+}
+
+/* ── منطقة الرسائل ───────────────────────────────────────────── */
+.mcw-msgs {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 12px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  scroll-behavior: smooth;
+}
+.mcw-msgs::-webkit-scrollbar { width: 4px; }
+.mcw-msgs::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 2px; }
+
+/* ── فقاعة رسالة ─────────────────────────────────────────────── */
+.mcw-msg { display: flex; flex-direction: column; max-width: 82%; }
+.mcw-msg--user { align-self: flex-start; align-items: flex-start; }
+.mcw-msg--bot  { align-self: flex-end;   align-items: flex-end;   }
+
+.mcw-bubble {
+  padding: 9px 13px;
+  border-radius: 16px;
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.mcw-msg--user .mcw-bubble {
+  background: var(--ink, #13213B);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+.mcw-msg--bot .mcw-bubble {
+  background: #f1f5f9;
+  color: var(--ink, #13213B);
+  border-bottom-left-radius: 4px;
+}
+
+.mcw-time { font-size: 10px; color: #94a3b8; margin-top: 3px; padding: 0 4px; }
+
+/* ── نقاط الكتابة ────────────────────────────────────────────── */
+.mcw-typing {
+  display: flex; gap: 4px; padding: 10px 14px;
+  background: #f1f5f9; border-radius: 16px; border-bottom-left-radius: 4px;
+  align-items: center;
+}
+.mcw-typing span {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #94a3b8;
+  animation: mcw-bounce 1.2s infinite;
+}
+.mcw-typing span:nth-child(2) { animation-delay: .2s; }
+.mcw-typing span:nth-child(3) { animation-delay: .4s; }
+@keyframes mcw-bounce {
+  0%, 80%, 100% { transform: translateY(0);    }
+  40%           { transform: translateY(-6px); }
+}
+
+/* ── أسئلة سريعة ─────────────────────────────────────────────── */
+.mcw-quick {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  padding: 8px 12px;
+  border-top: 1px solid #f1f5f9;
+  flex-shrink: 0;
+}
+.mcw-qbtn {
+  background: none;
+  border: 1px solid var(--gold, #C8932B);
+  color: var(--gold, #C8932B);
+  border-radius: 20px;
+  padding: 4px 11px;
+  font-size: 11.5px;
+  font-family: 'Cairo', sans-serif;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.mcw-qbtn:hover { background: var(--gold, #C8932B); color: #fff; }
+
+/* ── صف الإدخال ──────────────────────────────────────────────── */
+.mcw-input-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid #f1f5f9;
+  flex-shrink: 0;
+}
+.mcw-inp {
+  flex: 1;
+  border: 1px solid #e2e8f0;
+  border-radius: 22px;
+  padding: 9px 14px;
+  font-size: 13px;
+  font-family: 'Cairo', sans-serif;
+  outline: none;
+  background: #f8fafc;
+  color: var(--ink, #13213B);
+  transition: border-color .15s;
+  direction: rtl;
+}
+.mcw-inp:focus { border-color: var(--gold, #C8932B); background: #fff; }
+.mcw-inp::placeholder { color: #94a3b8; }
+
+.mcw-send {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--gold, #C8932B);
+  border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 15px;
+  flex-shrink: 0;
+  transition: opacity .15s, transform .15s;
+}
+.mcw-send:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+.mcw-send:not(:disabled):hover { opacity: .88; transform: scale(1.07); }
+
+/* ══════════════════════════════════════════════════════════════
+   فورم بيانات التواصل (Gate)
+   ══════════════════════════════════════════════════════════════ */
+.mcw-gate {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 20px 20px;
+  overflow-y: auto;
+  background: #fff;
+}
+.mcw-gate-icon {
+  font-size: 36px;
+  margin-bottom: 10px;
+}
+.mcw-gate-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--ink, #13213B);
+  margin: 0 0 4px;
+  text-align: center;
+}
+.mcw-gate-sub {
+  font-size: 12px;
+  color: #64748b;
+  margin: 0 0 18px;
+  text-align: center;
+  line-height: 1.5;
+}
+.mcw-gate-fields {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.mcw-gate-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.mcw-gate-field label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink, #13213B);
+}
+.mcw-required { color: #e53e3e; margin-right: 2px; }
+.mcw-optional { font-weight: 400; color: #94a3b8; font-size: 11px; }
+
+.mcw-gate-field input {
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 9px 13px;
+  font-size: 13px;
+  font-family: 'Cairo', sans-serif;
+  outline: none;
+  background: #f8fafc;
+  color: var(--ink, #13213B);
+  transition: border-color .15s;
+  width: 100%;
+  box-sizing: border-box;
+}
+.mcw-gate-field input:focus {
+  border-color: var(--gold, #C8932B);
+  background: #fff;
+}
+.mcw-gate-field input::placeholder { color: #94a3b8; }
+
+.mcw-gate-err {
+  font-size: 11.5px;
+  color: #e53e3e;
+  background: #fff5f5;
+  border: 1px solid #fed7d7;
+  border-radius: 8px;
+  padding: 7px 11px;
+  margin: 0;
+}
+
+.mcw-gate-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--gold, #C8932B);
+  color: #fff;
+  border: none;
+  border-radius: 22px;
+  padding: 11px 20px;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: 'Cairo', sans-serif;
+  cursor: pointer;
+  margin-top: 4px;
+  transition: opacity .15s, transform .15s;
+  width: 100%;
+}
+.mcw-gate-btn:hover { opacity: .88; transform: translateY(-1px); }
+.mcw-gate-btn i { font-size: 15px; }
+
+/* ── موبايل ───────────────────────────────────────────────────── */
+@media (max-width: 400px) {
+  .mcw-window              { width: calc(100vw - 32px); bottom: 82px; }
+  .mcw-window--rtl         { right: 16px; left: auto; }
+  .mcw-window--ltr         { left: 16px;  right: auto; }
+  .mcw-fab-wrap--rtl       { right: 16px; left: auto; bottom: 16px; }
+  .mcw-fab-wrap--ltr       { left: 16px;  right: auto; bottom: 16px; }
+}
+

@@ -9,6 +9,7 @@ import { useSiteData } from "../context/SiteDataContext.jsx";
 import { UI } from "../i18n.js";
 import { BrandStyles } from "../components/visuals.jsx";
 import Login from "../pages/Login.jsx";
+import ChatWidget from "../chat/ChatWidget.jsx";
 
 // ─── WhatsApp icon (lucide doesn't ship one) ────────────────────────────────
 function WhatsAppIcon({ size = 20, color = "currentColor" }) {
@@ -262,6 +263,7 @@ export default function Layout({ children }) {
       </div>
 
       {loginOpen && <Login onClose={() => setLoginOpen(false)} />}
+      <ChatWidget aiEnabled={true} lang={lang} />
     </LangContext.Provider>
   );
 }

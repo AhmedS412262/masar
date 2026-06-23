@@ -1,0 +1,133 @@
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
+@import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css');
+
+:root {
+  --gold: #C8932B;
+  --teal: #2F7B6E;
+  --ink:  #13213B;
+}
+
+/* ── Auth screens ── */
+.dash-auth-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #13213B;
+  padding: 20px;
+  font-family: 'Cairo', sans-serif;
+  direction: rtl;
+}
+.dash-auth-box {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 16px;
+  padding: 32px;
+  width: 100%;
+  max-width: 380px;
+  text-align: center;
+}
+
+/* ── Dashboard wrapper ── */
+.dash-app {
+  font-family: 'Cairo', sans-serif;
+  direction: rtl;
+}
+.dash-app.light {
+  --bg: #F0EDE4; --tx: #13213B; --surface: #fff; --surface2: #E8E4DA;
+  --border: rgba(19,33,59,0.1); --muted: #6B7280; --sidebar: #13213B;
+}
+.dash-app.dark {
+  --bg: #0B1220; --tx: #E8E4DA; --surface: #162035; --surface2: #1C2A40;
+  --border: rgba(255,255,255,0.07); --muted: rgba(255,255,255,0.45); --sidebar: #0D1626;
+}
+
+/* ── Nav items ── */
+.dash-ni {
+  display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+  border-radius: 7px; cursor: pointer; color: rgba(255,255,255,0.6);
+  font-size: 12.5px; font-weight: 600; transition: .15s; margin-bottom: 1px;
+  border: none; background: none; width: 100%; text-align: right; font-family: inherit;
+}
+.dash-ni:hover { background: rgba(255,255,255,0.07); color: #fff; }
+.dash-ni.active { background: var(--gold); color: var(--ink); }
+
+/* ── Tabs ── */
+.dash-tab {
+  padding: 6px 12px; border-radius: 6px; font-size: 11.5px; font-weight: 700;
+  cursor: pointer; border: none; background: none; color: var(--muted);
+  transition: .15s; flex: 1; text-align: center; font-family: inherit;
+}
+.dash-tab.active { background: var(--surface); color: var(--tx); box-shadow: 0 1px 3px rgba(0,0,0,0.07); }
+
+/* ── Buttons ── */
+.dash-btn {
+  padding: 7px 14px; border-radius: 7px; font-size: 12px; font-weight: 700;
+  cursor: pointer; border: none; transition: .15s;
+  display: inline-flex; align-items: center; gap: 5px; font-family: inherit;
+}
+.dash-btn.gold { background: var(--gold); color: var(--ink); }
+.dash-btn.gold:hover { opacity: .88; }
+.dash-btn.out  { background: none; border: 1px solid var(--border); color: var(--tx); }
+.dash-btn.out:hover { background: var(--surface2); }
+.dash-btn.red  { background: rgba(220,60,60,0.1); border: 1px solid rgba(220,60,60,0.2); color: #c03030; }
+.dash-btn.red:hover { background: rgba(220,60,60,0.2); }
+
+/* ── Form fields ── */
+.dash-input, .dash-select, .dash-textarea {
+  padding: 8px 10px; border-radius: 7px; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--tx); font-size: 12px; outline: none;
+  font-family: inherit; width: 100%; transition: .15s; resize: vertical;
+}
+.dash-input:focus, .dash-select:focus, .dash-textarea:focus { border-color: var(--gold); }
+
+/* ── Cards ── */
+.dash-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 13px; }
+
+/* ── Table ── */
+.dash-tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+.dash-tbl th { padding: 8px 11px; font-size: 10.5px; font-weight: 700; color: var(--muted); text-align: right; background: var(--surface2); border-bottom: 1px solid var(--border); }
+.dash-tbl td { padding: 9px 11px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.dash-tbl tr:last-child td { border: none; }
+.dash-tbl tr:hover td { background: var(--surface2); }
+
+/* ── Badge ── */
+.dash-badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 99px; font-size: 10.5px; font-weight: 700; }
+
+/* ── Toggle ── */
+.dash-tog { position: relative; width: 34px; height: 19px; flex-shrink: 0; }
+.dash-tog input { opacity: 0; width: 0; height: 0; position: absolute; }
+.dash-tog-sl { position: absolute; inset: 0; border-radius: 99px; background: rgba(19,33,59,0.2); cursor: pointer; transition: .25s; }
+.dash-app.dark .dash-tog-sl { background: rgba(255,255,255,0.15); }
+.dash-tog-sl:before { content: ''; position: absolute; width: 13px; height: 13px; border-radius: 50%; background: #fff; top: 3px; right: 3px; transition: .25s; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+.dash-tog input:checked + .dash-tog-sl { background: var(--teal); }
+.dash-tog input:checked + .dash-tog-sl:before { transform: translateX(-15px); }
+
+/* ── Rich editor ── */
+.dash-ea { min-height: 140px; padding: 11px 13px; outline: none; font-size: 12.5px; line-height: 1.8; color: var(--tx); font-family: inherit; }
+.dash-ea:empty:before { content: attr(data-placeholder); color: var(--muted); pointer-events: none; }
+.dash-ea h3 { font-size: 13.5px; font-weight: 800; margin: 6px 0 3px; }
+.dash-ea ul, .dash-ea ol { padding-right: 18px; margin: 3px 0; }
+.dash-ea li { margin: 2px 0; }
+
+/* ── Upload area ── */
+.dash-iua { border: 2px dashed var(--border); border-radius: 8px; padding: 14px; text-align: center; cursor: pointer; transition: .15s; }
+.dash-iua:hover { border-color: var(--gold); }
+
+/* ── Scholarship card ── */
+.dash-sch-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; transition: .15s; }
+.dash-sch-card:hover { border-color: var(--gold); }
+
+/* ── Action button ── */
+.dash-act-btn { width: 27px; height: 27px; border-radius: 6px; border: 1px solid var(--border); background: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--muted); transition: .15s; flex-shrink: 0; }
+.dash-act-btn:hover { border-color: var(--gold); color: var(--gold); }
+.dash-act-btn.r:hover { border-color: #e84545; color: #e84545; }
+.dash-act-btn.g { border-color: rgba(47,123,110,0.3); background: rgba(47,123,110,0.08); color: #2F7B6E; }
+
+/* ── OTP inputs ── */
+.otp-inp {
+  padding: 13px 0; border-radius: 9px; border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.07); color: #F0EDE4; font-size: 22px; font-weight: 800;
+  text-align: center; outline: none; width: 100%; font-family: 'Cairo', sans-serif; transition: .15s;
+}
+.otp-inp:focus { border-color: var(--gold); background: rgba(200,147,43,0.1); }

@@ -13,6 +13,7 @@ import Contact from "./pages/Contact.jsx";
 import Login from "./pages/Login.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 
+    
 export default function App() {
   return (
     <SiteDataProvider>  
@@ -28,6 +29,7 @@ export default function App() {
         <Route path="/login" element={<Login />} />  
         <Route path="/faq" element={<Layout><Faq /></Layout>} />
         <Route path="/contact" element={<Layout><Contact /></Layout>} />
+
       </Routes>
     </SiteDataProvider>
   );
