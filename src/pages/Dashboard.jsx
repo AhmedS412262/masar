@@ -1,9 +1,12 @@
 import { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext.jsx";
+import { Link, useNavigate } from "react-router-dom";
+import { verifyStaff } from "../context/StaffAuth.js";
 import * as XLSX from "xlsx";
 import "./Dashboard.css";
 import ChatTab from "../chat/ChatTab";
 import { getLeads } from "../chat/useChat";
+import { useSiteData } from "../context/SiteDataContext.jsx";
 
 // ─── Default Data ────────────────────────────────────────────────────────────
 const DEFAULT_USERS = [
@@ -151,37 +154,47 @@ function RichEditor({ id, placeholder, initialHTML, onChange }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // AUTH SCREENS
 // ═══════════════════════════════════════════════════════════════════════════════
-function LoginScreen({ onOtpSent }) {
-  const handleGoogle = () => {
-    // In production: trigger real Google OAuth here (e.g. firebase.auth().signInWithPopup)
-    // For demo: simulate with a known allowed email
-    const email = "omar@masar.com";
-    if (!ALLOWED_EMAILS.includes(email)) { alert("هذا البريد غير مصرح له بالدخول."); return; }
-    const otp = String(Math.floor(100000 + Math.random() * 900000));
-    onOtpSent({ email, otp, name: "م. عمر فارس", initials: "م.ع" });
+function LoginScreen({ onOtpSent, onDirectLogin }) {
+  const [email, setEmail]       = useState("");
+  const [password, setPassword] = useState("");
+  const [showPass, setShowPass] = useState(false);
+  const [error, setError]       = useState("");
+
+  const handleLogin = () => {
+    const staff = verifyStaff(email, password);
+    if (!staff) { setError("البريد الإلكتروني أو كلمة المرور غير صحيحة"); return; }
+    setError("");
+    if (staff.otpEnabled) {
+      const otp = String(Math.floor(100000 + Math.random() * 900000));
+      alert(`كود التحقق: ${otp}`);
+      onOtpSent({ email: staff.email, otp, name: staff.name, initials: staff.initials });
+    } else {
+      onDirectLogin({ email: staff.email, name: staff.name, initials: staff.initials });
+    }
   };
+
+  const iStyle = { width:"100%", padding:"10px 12px", borderRadius:8, border:"1px solid rgba(255,255,255,0.15)", background:"rgba(255,255,255,0.07)", color:"#F0EDE4", fontFamily:"inherit", fontSize:13, outline:"none", boxSizing:"border-box", WebkitTextFillColor:"#F0EDE4" };
+
   return (
     <div className="dash-auth-screen">
       <div className="dash-auth-box">
         <div style={{ width:56,height:56,borderRadius:14,background:"#C8932B",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 18px" }}>
           <i className="ti ti-school" style={{ fontSize:28,color:"#13213B" }} />
         </div>
-        <div style={{ fontWeight:800,fontSize:20,color:"#F0EDE4",marginBottom:7 }}>لوحة تحكم مسار</div>
-        <div style={{ fontSize:12.5,color:"rgba(255,255,255,0.5)",marginBottom:24,lineHeight:1.7 }}>
-          تسجيل الدخول مخصص للمدير والمشرفين فقط.<br />استخدم حساب Google المعتمد.
+        <div style={{ fontWeight:800,fontSize:20,color:"#F0EDE4",marginBottom:6 }}>لوحة تحكم مسار</div>
+        <div style={{ fontSize:12.5,color:"rgba(255,255,255,0.45)",marginBottom:24 }}>للمدير والمشرفين فقط</div>
+        <div style={{ textAlign:"right", marginBottom:10 }}>
+          <label style={{ fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.45)",display:"block",marginBottom:5 }}>البريد الإلكتروني</label>
+          <input type="email" value={email} onChange={e => setEmail(e.target.value)} style={iStyle} placeholder="name@masar.com" onKeyDown={e => e.key === "Enter" && handleLogin()} />
         </div>
-        <button onClick={handleGoogle} style={{ width:"100%",padding:12,borderRadius:10,border:"1px solid rgba(255,255,255,0.15)",background:"rgba(255,255,255,0.07)",color:"#F0EDE4",fontSize:13.5,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10,fontFamily:"inherit",marginBottom:16,transition:".15s" }}>
-          <svg width={21} height={21} viewBox="0 0 24 24">
-            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
-            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-          </svg>
-          المتابعة بحساب Google
-        </button>
-        <div style={{ fontSize:11.5,color:"rgba(255,255,255,0.35)",lineHeight:1.7 }}>
-          سيتم إرسال كود تحقق مكون من 6 أرقام<br />إلى بريدك الإلكتروني المسجّل بعد تسجيل Google.
+        <div style={{ textAlign:"right", marginBottom:16, position:"relative" }}>
+          <label style={{ fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.45)",display:"block",marginBottom:5 }}>كلمة المرور</label>
+          <input type={showPass ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} style={{ ...iStyle, paddingLeft:40 }} placeholder="••••••••" onKeyDown={e => e.key === "Enter" && handleLogin()} />
+          <button onClick={() => setShowPass(s => !s)} style={{ position:"absolute",bottom:10,left:12,background:"none",border:"none",cursor:"pointer",color:"rgba(255,255,255,0.45)",fontSize:15 }}>{showPass ? "🙈" : "👁️"}</button>
         </div>
+        {error && <div style={{ fontSize:12,color:"#e84545",marginBottom:12,textAlign:"center" }}>{error}</div>}
+        <button onClick={handleLogin} style={{ width:"100%",padding:12,borderRadius:10,background:"#C8932B",color:"#13213B",fontSize:14,fontWeight:800,cursor:"pointer",border:"none",fontFamily:"inherit",marginBottom:14 }}>تسجيل الدخول</button>
+        <div style={{ fontSize:11,color:"rgba(255,255,255,0.3)",textAlign:"center",lineHeight:1.7 }}>كلمة المرور يحددها المدير لكل موظف</div>
       </div>
     </div>
   );
@@ -268,6 +281,7 @@ function OtpScreen({ otpData, onVerified, onBack }) {
 // MAIN DASHBOARD
 // ═══════════════════════════════════════════════════════════════════════════════
 function DashboardApp({ adminInfo, onLogout }) {
+  const { data, updateField } = useSiteData();
   const [isDark, setIsDark] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
   const [searchQ, setSearchQ] = useState("");
@@ -288,6 +302,16 @@ function DashboardApp({ adminInfo, onLogout }) {
   const [brandName, setBrandName] = useState("مسار");
   const [accentColor, setAccentColor] = useState("#C8932B");
   const [saveMsg, setSaveMsg] = useState(false);
+  const [aboutDraft, setAboutDraft] = useState(() => data?.about || {
+    titleAr: "من نحن", titleEn: "About Us",
+    textAr: "مسار شركة استشارات متخصصة في مساعدة الطلاب للحصول على منح دراسية في الخارج.",
+    textEn: "Masar is a consultancy specialized in helping students obtain scholarships abroad.",
+    points: [
+      { id: "p1", tAr: "خبرة حقيقية", tEn: "Real Experience", dAr: "فريقنا حاصل على منح دولية.", dEn: "Our team holds international scholarships." },
+      { id: "p2", tAr: "متابعة كاملة", tEn: "Full Support", dAr: "نرافقك من التقديم للقبول.", dEn: "We guide you from application to acceptance." },
+      { id: "p3", tAr: "استشارة مجانية", tEn: "Free Consultation", dAr: "ابدأ بتقييم مجاني لملفك.", dEn: "Start with a free file assessment." },
+    ],
+  });
 
   // Rich editor refs for scholarship detail
   const reqRef = useRef(null);
@@ -373,6 +397,7 @@ function DashboardApp({ adminInfo, onLogout }) {
     { id: "courses",      label: "الكورسات",            icon: "ti-book" },
     { id: "research",     label: "الأبحاث",             icon: "ti-flask" },
     { id: "content",      label: "محتوى الموقع",        icon: "ti-layout-cards" },
+    { id: "about",        label: "من نحن",               icon: "ti-info-circle" },
     { id: "hero",         label: "الصفحة الرئيسية",    icon: "ti-home" },
     { id: "team",         label: "فريق العمل",          icon: "ti-id-badge" },
     { id: "faq",          label: "الأسئلة الشائعة",    icon: "ti-help-circle" },
@@ -415,7 +440,7 @@ function DashboardApp({ adminInfo, onLogout }) {
         {/* Topbar */}
         <div style={{ height:52,background:"var(--surface)",borderBottom:"1px solid var(--border)",display:"flex",alignItems:"center",padding:"0 15px",gap:9,flexShrink:0 }}>
           <span style={{ fontWeight:800,fontSize:15,flex:1 }}>
-            {{ overview:"نظرة عامة",users:"المستخدمون",leads:"العملاء المحتملون",chat:"الشات",scholarships: curScholId ? (curSchol?.tAr||"تفاصيل المنحة") : "المنح الدراسية",courses:"الكورسات",research:"الأبحاث",content:"محتوى الموقع",hero:"الصفحة الرئيسية",team:"فريق العمل",faq:"الأسئلة الشائعة",settings:"الإعدادات" }[activeTab]}
+            {{ overview:"نظرة عامة",users:"المستخدمون",leads:"العملاء المحتملون",chat:"الشات",scholarships: curScholId ? (curSchol?.tAr||"تفاصيل المنحة") : "المنح الدراسية",courses:"الكورسات",research:"الأبحاث",content:"محتوى الموقع",about:"من نحن",hero:"الصفحة الرئيسية",team:"فريق العمل",faq:"الأسئلة الشائعة",settings:"الإعدادات" }[activeTab]}
           </span>
           <div style={{ display:"flex",alignItems:"center",gap:6,background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:7,padding:"0 9px",width:190 }}>
             <i className="ti ti-search" style={{ color:"var(--muted)",fontSize:15 }} />
@@ -773,6 +798,7 @@ function DashboardApp({ adminInfo, onLogout }) {
                   {ico:"ti-id-badge",bg:"rgba(200,147,43,0.12)",c:"#C8932B",ttl:"فريق العمل",dsc:"إدارة أعضاء الفريق",tab:"team"},
                   {ico:"ti-help-circle",bg:"rgba(107,93,211,0.12)",c:"#6B5DD3",ttl:"الأسئلة الشائعة",dsc:"الأسئلة والأجوبة",tab:"faq"},
                   {ico:"ti-home",bg:"rgba(19,33,59,0.08)",c:"var(--ink)",ttl:"الصفحة الرئيسية",dsc:"نصوص Hero وأزرار CTA",tab:"hero"},
+                  {ico:"ti-info-circle",bg:"rgba(47,123,110,0.12)",c:"#2F7B6E",ttl:"من نحن",dsc:"تعديل نص ونقاط صفحة من نحن",tab:"about"},
                 ].map(item => (
                   <div key={item.tab} className="dash-card" style={{ display:"flex",flexDirection:"column",gap:9 }}>
                     <div style={{ display:"flex",alignItems:"center",gap:8 }}>
@@ -787,6 +813,75 @@ function DashboardApp({ adminInfo, onLogout }) {
                     <button className="dash-btn gold" style={{ width:"100%",justifyContent:"center" }} onClick={()=>goTab(item.tab)}>
                       فتح <i className="ti ti-arrow-left" style={{ fontSize:11 }} />
                     </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── About ── */}
+          {activeTab === "about" && (
+            <div>
+              <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12 }}>
+                <span style={{ fontWeight:800,fontSize:14 }}>صفحة من نحن</span>
+                <button className="dash-btn gold" onClick={()=>{ updateField("about", aboutDraft); showSaveMsg(); }}>
+                  <i className="ti ti-device-floppy" style={{ fontSize:12 }} />حفظ
+                </button>
+              </div>
+
+              {/* العنوان والنص */}
+              <div className="dash-card" style={{ marginBottom:10 }}>
+                <div style={{ fontWeight:800,fontSize:13,marginBottom:12,display:"flex",alignItems:"center",gap:7 }}>
+                  <i className="ti ti-text-caption" style={{ color:"#2F7B6E" }} />العنوان والنص التعريفي
+                </div>
+                <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:10 }}>
+                  <Field label="العنوان (عربي)">
+                    <input className="dash-input" value={aboutDraft.titleAr||""} onChange={e=>setAboutDraft(p=>({...p,titleAr:e.target.value}))} />
+                  </Field>
+                  <Field label="العنوان (إنجليزي)">
+                    <input className="dash-input" value={aboutDraft.titleEn||""} onChange={e=>setAboutDraft(p=>({...p,titleEn:e.target.value}))} dir="ltr" />
+                  </Field>
+                  <Field label="النص التعريفي (عربي)">
+                    <textarea className="dash-textarea" rows={3} value={aboutDraft.textAr||""} onChange={e=>setAboutDraft(p=>({...p,textAr:e.target.value}))} />
+                  </Field>
+                  <Field label="النص التعريفي (إنجليزي)">
+                    <textarea className="dash-textarea" rows={3} value={aboutDraft.textEn||""} onChange={e=>setAboutDraft(p=>({...p,textEn:e.target.value}))} dir="ltr" />
+                  </Field>
+                </div>
+              </div>
+
+              {/* النقاط */}
+              <div className="dash-card">
+                <div style={{ fontWeight:800,fontSize:13,marginBottom:12,display:"flex",alignItems:"center",gap:7 }}>
+                  <i className="ti ti-list-check" style={{ color:"#C8932B" }} />النقاط (الكروت الثلاثة)
+                  <button className="dash-btn gold" style={{ marginRight:"auto",fontSize:11,padding:"4px 9px" }}
+                    onClick={()=>setAboutDraft(p=>({...p,points:[...p.points,{id:uid(),tAr:"عنوان جديد",tEn:"New Title",dAr:"وصف",dEn:"Description"}]}))}>
+                    <i className="ti ti-plus" style={{ fontSize:10 }} />إضافة نقطة
+                  </button>
+                </div>
+                {(aboutDraft.points||[]).map((pt,idx)=>(
+                  <div key={pt.id} style={{ border:"1px solid var(--border)",borderRadius:10,padding:12,marginBottom:10 }}>
+                    <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:9 }}>
+                      <span style={{ fontWeight:700,fontSize:12,color:"var(--muted)" }}>نقطة {idx+1}</span>
+                      <button className="dash-btn red" style={{ fontSize:11,padding:"3px 8px" }}
+                        onClick={()=>setAboutDraft(p=>({...p,points:p.points.filter(x=>x.id!==pt.id)}))}>
+                        <i className="ti ti-trash" style={{ fontSize:11 }} />حذف
+                      </button>
+                    </div>
+                    <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:9 }}>
+                      <Field label="العنوان (عربي)">
+                        <input className="dash-input" value={pt.tAr} onChange={e=>setAboutDraft(p=>({...p,points:p.points.map(x=>x.id===pt.id?{...x,tAr:e.target.value}:x)}))} />
+                      </Field>
+                      <Field label="العنوان (إنجليزي)">
+                        <input className="dash-input" value={pt.tEn} onChange={e=>setAboutDraft(p=>({...p,points:p.points.map(x=>x.id===pt.id?{...x,tEn:e.target.value}:x)}))} dir="ltr" />
+                      </Field>
+                      <Field label="الوصف (عربي)">
+                        <textarea className="dash-textarea" rows={2} value={pt.dAr} onChange={e=>setAboutDraft(p=>({...p,points:p.points.map(x=>x.id===pt.id?{...x,dAr:e.target.value}:x)}))} />
+                      </Field>
+                      <Field label="الوصف (إنجليزي)">
+                        <textarea className="dash-textarea" rows={2} value={pt.dEn} onChange={e=>setAboutDraft(p=>({...p,points:p.points.map(x=>x.id===pt.id?{...x,dEn:e.target.value}:x)}))} dir="ltr" />
+                      </Field>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1190,20 +1285,35 @@ function AddUserModal({ onSave, onClose }) {
 // ROOT EXPORT
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function Dashboard() {
+  const { login, logout } = useAuth();
+  const navigate = useNavigate();
   const [screen, setScreen] = useState("login");
   const [otpData, setOtpData] = useState(null);
   const [adminInfo, setAdminInfo] = useState(null);
 
-  useEffect(() => { }, []);
-
   const handleOtpSent = (data) => { setOtpData(data); setScreen("otp"); };
+
   const handleVerified = () => {
+    login(otpData.email, { name: otpData.name, initials: otpData.initials });
     setAdminInfo({ name: otpData.name, email: otpData.email, initials: otpData.initials });
     setScreen("dash");
   };
-  const handleLogout = () => { setScreen("login"); setOtpData(null); setAdminInfo(null); };
 
-  if (screen === "login") return <LoginScreen onOtpSent={handleOtpSent} />;
+  // دخول مباشر بدون OTP
+  const handleDirectLogin = (data) => {
+    login(data.email, { name: data.name, initials: data.initials });
+    setAdminInfo({ name: data.name, email: data.email, initials: data.initials });
+    setScreen("dash");
+  };
+
+  const handleLogout = () => {
+    logout();
+    setScreen("login");
+    setOtpData(null);
+    setAdminInfo(null);
+  };
+
+  if (screen === "login") return <LoginScreen onOtpSent={handleOtpSent} onDirectLogin={handleDirectLogin} />;
   if (screen === "otp")   return <OtpScreen otpData={otpData} onVerified={handleVerified} onBack={()=>setScreen("login")} />;
   return <DashboardApp adminInfo={adminInfo} onLogout={handleLogout} />;
 }

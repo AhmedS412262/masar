@@ -131,3 +131,91 @@
   text-align: center; outline: none; width: 100%; font-family: 'Cairo', sans-serif; transition: .15s;
 }
 .otp-inp:focus { border-color: var(--gold); background: rgba(200,147,43,0.1); }
+
+/* ── Layout ── */
+.dash-app {
+  display: flex;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--tx);
+}
+
+.dash-sidebar {
+  width: 220px;
+  min-width: 220px;
+  background: var(--sidebar);
+  display: flex;
+  flex-direction: column;
+  padding: 14px 10px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  z-index: 10;
+}
+
+.dash-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 6px 16px;
+  font-size: 17px;
+  font-weight: 900;
+  color: #fff;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  margin-bottom: 10px;
+}
+
+.dash-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+}
+
+.dash-tab {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px !important;
+  border-radius: 7px;
+  cursor: pointer;
+  color: rgba(255,255,255,0.55);
+  font-size: 12.5px;
+  font-weight: 600;
+  transition: .15s;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: right;
+  font-family: inherit;
+  flex: unset !important;
+}
+.dash-tab:hover { background: rgba(255,255,255,0.07); color: #fff; }
+.dash-tab.active { background: var(--gold); color: var(--ink); }
+
+.dash-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--bg);
+}
+
+.dash-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.dash-content {
+  flex: 1;
+  padding: 18px 20px;
+  overflow-y: auto;
+}

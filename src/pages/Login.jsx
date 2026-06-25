@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext.jsx";
 import { Link } from "react-router-dom";
 import {
   ArrowLeft, ArrowRight, Mail, Lock, User, Phone, Eye, EyeOff,
@@ -12,7 +14,7 @@ const TABS = [
   { id: "forgot", labelAr: "نسيت الباسورد", labelEn: "Forgot password", Icon: KeyRound },
 ];
 
-const inputStyle = { background: "rgba(255,255,255,.08)", color: "var(--paper)", border: "1px solid rgba(255,255,255,.12)" };
+const inputStyle = { background: "rgba(255,255,255,.08)", color: "#fff", border: "1px solid rgba(255,255,255,.25)", WebkitTextFillColor: "#fff" };
 
 function Field({ id, label, children }) {
   return (
@@ -30,7 +32,7 @@ function PasswordInput({ id, name, value, onChange, placeholder, autoComplete })
       <input
         id={id} name={name} type={show ? "text" : "password"} required
         value={value} onChange={onChange} autoComplete={autoComplete}
-        className="w-full px-4 py-2.5 pe-11 rounded-lg text-sm outline-none"
+        className="w-full px-4 py-2.5 pe-11 rounded-lg text-sm outline-none login-input"
         style={inputStyle}
         placeholder={placeholder}
       />
@@ -49,6 +51,8 @@ function PasswordInput({ id, name, value, onChange, placeholder, autoComplete })
 
 export default function Login({ onClose }) {
   const { isAr, ui } = useLang();
+  const { login, ROLE_ROUTES } = useAuth();
+  const navigate = useNavigate();
   const Arrow = isAr ? ArrowLeft : ArrowRight;
   const BackArrow = isAr ? ArrowRight : ArrowLeft;
   const [activeTab, setActiveTab] = useState("login");
@@ -60,7 +64,9 @@ export default function Login({ onClose }) {
   const handleLogin = (e) => {
     e.preventDefault();
     // TODO: replace with real sign-in call (Firebase/API).
-    console.log("Login submitted (UI only):", loginForm);
+    const role = login(loginForm.email, { name: loginForm.email.split("@")[0] });
+    if (onClose) onClose();
+    navigate(ROLE_ROUTES[role] || "/");
   };
 
   // --- Register: UI only for now. ---
@@ -75,7 +81,9 @@ export default function Login({ onClose }) {
     }
     setRegisterError("");
     // TODO: replace with real account-creation call (Firebase/API).
-    console.log("Register submitted (UI only):", registerForm);
+    const role = login(registerForm.email, { name: registerForm.name, phone: registerForm.phone });
+    if (onClose) onClose();
+    navigate(ROLE_ROUTES[role] || "/");
   };
 
   // --- Forgot password: UI only for now. ---
@@ -99,7 +107,7 @@ export default function Login({ onClose }) {
               key={t.id}
               onClick={() => setActiveTab(t.id)}
               className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold py-2.5 rounded-full transition-colors"
-              style={active ? { background: "var(--gold)", color: "var(--ink)" } : { color: "var(--paper)", opacity: 0.6 }}
+              style={active ? { background: "var(--gold)", color: "var(--ink)" } : { color: "#ffffff", opacity: 0.6 }}
             >
               <t.Icon size={14} /> {isAr ? t.labelAr : t.labelEn}
             </button>
@@ -121,7 +129,7 @@ export default function Login({ onClose }) {
               <input
                 id="login-email" name="email" type="email" required autoComplete="email"
                 value={loginForm.email} onChange={handleLoginChange}
-                className="w-full px-4 py-2.5 rounded-lg text-sm outline-none"
+                className="w-full px-4 py-2.5 rounded-lg text-sm outline-none login-input"
                 style={inputStyle}
                 placeholder="name@example.com"
               />
@@ -170,7 +178,7 @@ export default function Login({ onClose }) {
                 <input
                   id="reg-name" name="name" type="text" required autoComplete="name"
                   value={registerForm.name} onChange={handleRegisterChange}
-                  className="w-full px-4 py-2.5 rounded-lg text-sm outline-none"
+                  className="w-full px-4 py-2.5 rounded-lg text-sm outline-none login-input"
                   style={inputStyle}
                   placeholder={isAr ? "اسمك بالكامل" : "Your full name"}
                 />
@@ -179,7 +187,7 @@ export default function Login({ onClose }) {
                 <input
                   id="reg-phone" name="phone" type="tel" autoComplete="tel"
                   value={registerForm.phone} onChange={handleRegisterChange}
-                  className="w-full px-4 py-2.5 rounded-lg text-sm outline-none"
+                  className="w-full px-4 py-2.5 rounded-lg text-sm outline-none login-input"
                   style={inputStyle}
                   placeholder={isAr ? "01xxxxxxxxx" : "+20 1xxxxxxxxx"}
                 />
@@ -190,7 +198,7 @@ export default function Login({ onClose }) {
               <input
                 id="reg-email" name="email" type="email" required autoComplete="email"
                 value={registerForm.email} onChange={handleRegisterChange}
-                className="w-full px-4 py-2.5 rounded-lg text-sm outline-none"
+                className="w-full px-4 py-2.5 rounded-lg text-sm outline-none login-input"
                 style={inputStyle}
                 placeholder="name@example.com"
               />
@@ -259,7 +267,7 @@ export default function Login({ onClose }) {
                 <input
                   id="forgot-email" name="email" type="email" required autoComplete="email"
                   value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-lg text-sm outline-none"
+                  className="w-full px-4 py-2.5 rounded-lg text-sm outline-none login-input"
                   style={inputStyle}
                   placeholder="name@example.com"
                 />
@@ -295,12 +303,12 @@ export default function Login({ onClose }) {
         <div
           onClick={(e) => e.stopPropagation()}
           className="w-full max-w-md rounded-2xl px-7 pb-7 pt-12 relative max-h-[90vh] overflow-y-auto"
-          style={{ background: "var(--ink)", color: "var(--paper)" }}
+          style={{ background: "var(--ink)", color: "#ffffff" }}
         >
           <button
             onClick={onClose}
             className="absolute top-4 end-4 opacity-70 hover:opacity-100"
-            style={{ color: "var(--paper)" }}
+            style={{ color: "#ffffff" }}
             aria-label={isAr ? "إغلاق" : "Close"}
           >
             <X size={18} />
@@ -313,7 +321,7 @@ export default function Login({ onClose }) {
 
   // --- Standalone mode: full page at /login ---
   return (
-    <div dir={ui.dir} className="min-h-screen flex items-center justify-center px-5 py-16" style={{ background: "var(--ink)", color: "var(--paper)" }}>
+    <div dir={ui.dir} className="min-h-screen flex items-center justify-center px-5 py-16" style={{ background: "var(--ink)", color: "#ffffff" }}>
       <div className="w-full max-w-md">
         <Link to="/" className="inline-flex items-center gap-2 text-xs font-semibold opacity-60 hover:opacity-100 mb-8">
           <BackArrow size={14} /> {isAr ? "العودة للرئيسية" : "Back to home"}
