@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+﻿import { useState, useRef, useEffect } from "react";
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from "docx";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -82,10 +82,10 @@ const ROLES = {
 };
 
 const ROLE_TABS = {
-  admin:      ["overview","students","new","potential","registered","tasks","payments","schedule","quick-replies","whatsapp-sales","whatsapp-consulting","site-chat","reports","staff"],
-  consultant: ["students","registered","tasks","schedule","quick-replies","whatsapp-consulting","site-chat"],
-  sales:      ["overview","new","potential","tasks","payments","quick-replies","whatsapp-sales","site-chat"],
-  support:    ["students","new","tasks","site-chat","quick-replies","whatsapp-sales"],
+  admin:      ["overview","students","new","potential","registered","tasks","payments","schedule","quick-replies","whatsapp-sales","whatsapp-consulting","site-chat","followup","marketing","email","reports","finance","staff"],
+  consultant: ["overview","students","registered","tasks","schedule","quick-replies","whatsapp-consulting","followup","email","search"],
+  sales:      ["overview","new","potential","tasks","payments","quick-replies","whatsapp-sales","site-chat","followup","email","search"],
+  support:    ["students","new","tasks","site-chat","quick-replies","whatsapp-sales","followup","search"],
 };
 
 // ─── Quick Replies Storage ───────────────────────────────────────────────────────
@@ -276,6 +276,10 @@ function CRMApp({ staffInfo, onLogout }) {
   const isAdmin      = myRole === "admin";
   const allowedTabs  = ROLE_TABS[myRole] || ROLE_TABS.consultant;
 
+  // حساب التنبيهات الخاصة بهذا الموظف
+  const allAlerts = getAlerts(allStudents, getStaffList());
+  const myAlerts  = isAdmin ? allAlerts : allAlerts.filter(a=>a.staffEmail===staffInfo?.email);
+
   const showSaved = () => { setSaved(true); setTimeout(()=>setSaved(false),2000); };
   const student   = selectedEmail ? allStudents.find(s=>s.email===selectedEmail) : null;
 
@@ -302,7 +306,7 @@ function CRMApp({ staffInfo, onLogout }) {
 
   const filteredStudents = myStudents.filter(s => {
     const matchStatus = statusFilter==="all" || s.status===statusFilter;
-    const matchSearch = !search || s.name?.includes(search) || s.email?.includes(search) || s.phone?.includes(search);
+    const matchSearch = !search || s.name?.includes(search) || s.email?.includes(search) || s.phone?.includes(search) || s.scholarship?.includes(search) || s.serviceType?.includes(search) || s.country?.includes(search);
     return matchStatus && matchSearch;
   });
 
@@ -346,6 +350,11 @@ function CRMApp({ staffInfo, onLogout }) {
       { id:"whatsapp-sales",      label:"واتساب المبيعات",     icon:"ti-brand-whatsapp",   show: allowedTabs.includes("whatsapp-sales") },
       { id:"whatsapp-consulting", label:"واتساب الاستشاريين", icon:"ti-brand-whatsapp",   show: allowedTabs.includes("whatsapp-consulting") },
       { id:"site-chat",     label:"شات الموقع",       icon:"ti-message-circle",   show: allowedTabs.includes("site-chat") },
+      { id:"followup",      label:"المتابعة",           icon:"ti-refresh",          show: allowedTabs.includes("followup") },
+      { id:"marketing",     label:"الماركتينج",        icon:"ti-speakerphone",     show: allowedTabs.includes("marketing") },
+      { id:"email",         label:"الإيميلات",          icon:"ti-mail",             show: allowedTabs.includes("email") },
+      { id:"search",        label:"البحث",              icon:"ti-search",           show: allowedTabs.includes("search") },
+      { id:"finance",       label:"المالية",            icon:"ti-coins",            show: allowedTabs.includes("finance") },
       { id:"staff",         label:"الموظفون",          icon:"ti-id-badge",         show: isAdmin },
     ]},
   ];
@@ -414,20 +423,77 @@ function CRMApp({ staffInfo, onLogout }) {
             </>
           ) : (
             <span style={{ fontWeight:800,fontSize:15 }}>
-              {activeTab==="overview"?"📊 نظرة عامة":activeTab==="reports"?"📈 التقارير":activeTab==="tasks"?"✅ المهام":activeTab==="staff"?"👥 الموظفون":activeTab==="payments"?"💰 المدفوعات":activeTab==="schedule"?"📅 جدول المواعيد":activeTab==="quick-replies"?"💬 ردود جاهزة":activeTab==="site-chat"?"🖥️ شات الموقع":activeTab==="whatsapp-sales"?"📱 واتساب المبيعات":activeTab==="whatsapp-consulting"?"📱 واتساب الاستشاريين":"قائمة الطلاب"}
+              {activeTab==="overview"?"📊 نظرة عامة":activeTab==="reports"?"📈 التقارير":activeTab==="finance"?"💵 المالية":activeTab==="tasks"?"✅ المهام":activeTab==="staff"?"👥 الموظفون":activeTab==="payments"?"💰 المدفوعات":activeTab==="schedule"?"📅 جدول المواعيد":activeTab==="quick-replies"?"💬 ردود جاهزة":activeTab==="site-chat"?"🖥️ شات الموقع":activeTab==="whatsapp-sales"?"📱 واتساب المبيعات":activeTab==="whatsapp-consulting"?"📱 واتساب الاستشاريين":"قائمة الطلاب"}
             </span>
           )}
           <div style={{ flex:1 }} />
           {saved && <span style={{ fontSize:12,color:"#2F7B6E",fontWeight:700 }}>✓ تم الحفظ</span>}
-          {/* بحث سريع */}
-          {!student && ["students","new","potential","registered"].includes(activeTab) && (
+          {/* Avatar + Bell + Logout */}
+          <div style={{ display:"flex",alignItems:"center",gap:10,marginRight:4,borderRight:"1px solid rgba(255,255,255,0.07)",paddingRight:12 }}>
+            {/* Avatar */}
+            <div style={{ position:"relative",flexShrink:0 }}>
+              <div style={{ width:34,height:34,borderRadius:"50%",background:ROLES[myRole]?.color||"#C8932B",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:800,color:"#13213B",border:"2px solid rgba(255,255,255,0.15)" }}>
+                {staffInfo?.initials||staffInfo?.name?.[0]||"?"}
+              </div>
+              <div style={{ position:"absolute",bottom:-2,right:-2,width:14,height:14,borderRadius:"50%",background:"#0D1626",display:"flex",alignItems:"center",justifyContent:"center",fontSize:8 }}>
+                {myRole==="admin"?"👑":myRole==="consultant"?"🎓":myRole==="sales"?"💼":"🎧"}
+              </div>
+            </div>
+            {/* Name + Role */}
+            <div style={{ fontSize:11,lineHeight:1.4,minWidth:60 }}>
+              <div style={{ fontWeight:700,color:"#E8E4DA",whiteSpace:"nowrap" }}>{staffInfo?.name}</div>
+              <div style={{ color:ROLES[myRole]?.color||"rgba(255,255,255,0.4)",fontSize:10 }}>{ROLES[myRole]?.label}</div>
+            </div>
+            {/* Bell */}
+            <div style={{ position:"relative",cursor:"pointer",padding:"4px" }} title={myAlerts.length>0?`${myAlerts.length} تنبيه`:"لا توجد تنبيهات"}>
+              <i className="ti ti-bell" style={{ fontSize:18,color:myAlerts.length>0?"#e84545":"rgba(255,255,255,0.4)" }} />
+              {myAlerts.length > 0 && (
+                <span style={{ position:"absolute",top:0,right:0,minWidth:15,height:15,borderRadius:99,background:"#e84545",fontSize:9,fontWeight:800,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",padding:"0 2px" }}>
+                  {myAlerts.length}
+                </span>
+              )}
+            </div>
+            {/* Logout */}
+            <button onClick={onLogout} style={{ background:"none",border:"1px solid rgba(255,255,255,0.15)",borderRadius:7,cursor:"pointer",color:"rgba(255,255,255,0.5)",fontSize:11,padding:"5px 10px",fontFamily:"inherit",display:"flex",alignItems:"center",gap:4 }}>
+              <i className="ti ti-logout" style={{ fontSize:13 }} />
+              خروج
+            </button>
+          </div>
+
+          {/* بحث سريع - دائم في الـ topbar */}
+          {!student && (
             <div style={{ position:"relative" }}>
-              <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="بحث بالاسم أو الإيميل..." style={{ ...S.input,width:220,padding:"6px 11px 6px 32px",fontSize:12 }} />
+              <input value={search} onChange={e=>{
+                setSearch(e.target.value);
+                if (e.target.value && !["students","new","potential","registered"].includes(activeTab)) {
+                  setActiveTab("students");
+                  setStatusFilter("all");
+                }
+              }} placeholder="🔍 بحث سريع..." style={{ ...S.input,width:200,padding:"6px 11px 6px 32px",fontSize:12 }} />
               <i className="ti ti-search" style={{ position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",fontSize:13,color:"rgba(255,255,255,0.3)" }} />
+              {search && <button onClick={()=>setSearch("")} style={{ position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",color:"rgba(255,255,255,0.4)",fontSize:14,lineHeight:1 }}>✕</button>}
             </div>
           )}
         </div>
 
+        {/* Alerts Banner */}
+        {myAlerts.length > 0 && (
+          <div style={{ padding:"0 20px",paddingTop:8 }}>
+            {myAlerts.slice(0,3).map((alert,i)=>(
+              <div key={i} style={{ display:"flex",alignItems:"center",gap:10,padding:"8px 14px",borderRadius:8,marginBottom:6,
+                background:alert.priority==="high"?"rgba(232,69,69,0.1)":"rgba(200,147,43,0.08)",
+                border:`1px solid ${alert.priority==="high"?"rgba(232,69,69,0.3)":"rgba(200,147,43,0.2)"}` }}>
+                <span style={{ fontSize:16 }}>{alert.priority==="high"?"🔴":"🟡"}</span>
+                <div style={{ flex:1 }}>
+                  <span style={{ fontSize:12.5,fontWeight:700,color:alert.priority==="high"?"#e84545":"#C8932B" }}>{alert.msg}</span>
+                  {isAdmin && <span style={{ fontSize:11,color:"rgba(255,255,255,0.45)",marginRight:8 }}> — {alert.staffName}</span>}
+                </div>
+                <span style={{ fontSize:11,color:"rgba(255,255,255,0.35)" }}>{alert.studentName}</span>
+              </div>
+            ))}
+            {myAlerts.length > 3 && <div style={{ fontSize:11,color:"rgba(255,255,255,0.35)",textAlign:"center",marginBottom:6 }}>و{myAlerts.length-3} تنبيه آخر...</div>}
+          </div>
+        )}
         <div style={S.content}>
 
           {/* ══ Overview ══ */}
@@ -464,8 +530,23 @@ function CRMApp({ staffInfo, onLogout }) {
           {/* ══ Tasks ══ */}
           {activeTab==="tasks" && !student && <TasksTab staffInfo={staffInfo} allStudents={allStudents} S={S} />}
 
+          {/* ══ Follow Up ══ */}
+          {activeTab==="followup" && !student && <FollowUpTab allStudents={allStudents} staffInfo={staffInfo} S={S} />}
+
+          {/* ══ Marketing ══ */}
+          {activeTab==="marketing" && !student && <MarketingTab allStudents={allStudents} S={S} />}
+
+          {/* ══ Email ══ */}
+          {activeTab==="email" && !student && <EmailTab allStudents={allStudents} staffInfo={staffInfo} S={S} />}
+
+          {/* ══ Search ══ */}
+          {activeTab==="search" && !student && <SearchTab allStudents={allStudents} staffInfo={staffInfo} setSelectedEmail={setSelectedEmail} setActiveTab={setActiveTab} S={S} />}
+
           {/* ══ Reports ══ */}
           {activeTab==="reports" && !student && <ReportsTab allStudents={allStudents} S={S} />}
+
+          {/* ══ Finance ══ */}
+          {activeTab==="finance" && !student && <FinanceTab allStudents={allStudents} S={S} />}
 
           {/* ══ Payments ══ */}
           {activeTab==="payments" && !student && <PaymentsTab allStudents={allStudents} staffInfo={staffInfo} S={S} />}
@@ -498,6 +579,14 @@ function CRMApp({ staffInfo, onLogout }) {
 function OverviewTab({ allStudents, staffInfo, setActiveTab, setStatusFilter, S }) {
   const staffList   = getStaffList();
   const myRole      = staffList.find(s=>s.email===staffInfo?.email)?.role || "consultant";
+  const getFupStats = (emailOrName) => {
+    try {
+      const fups = JSON.parse(localStorage.getItem("masar_followups")||"[]");
+      const now2 = new Date();
+      const mine = fups.filter(f=>f.assignedTo===emailOrName||f.createdBy===emailOrName);
+      return { overdue:mine.filter(f=>!f.done&&f.date&&new Date(f.date)<now2).length, today:mine.filter(f=>!f.done&&f.date&&f.date.split("T")[0]===now2.toISOString().split("T")[0]).length, pending:mine.filter(f=>!f.done&&(!f.date||new Date(f.date)>=now2)).length, done:mine.filter(f=>f.done).length };
+    } catch { return {overdue:0,today:0,pending:0,done:0}; }
+  };
   const myStudents  = myRole==="admin" ? allStudents :
                       myRole==="consultant" ? allStudents.filter(s=>s.assignedConsultant===staffInfo?.email) :
                       allStudents.filter(s=>s.assignedSales===staffInfo?.email);
@@ -551,6 +640,24 @@ function OverviewTab({ allStudents, staffInfo, setActiveTab, setStatusFilter, S 
         </div>
 
         <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:14 }}>
+          {/* تنبيهات السيلز */}
+          {(() => {
+            const myAlerts2 = getAlerts(allStudents, staffList).filter(a=>a.staffEmail===staffInfo?.email);
+            if (!myAlerts2.length) return null;
+            return (
+              <div style={{ ...S.card,gridColumn:"1/-1",border:"1px solid rgba(232,69,69,0.25)",background:"rgba(232,69,69,0.04)",marginBottom:0 }}>
+                <div style={{ fontWeight:700,fontSize:13,color:"#e84545",marginBottom:10 }}>🔴 تنبيهاتك العاجلة ({myAlerts2.length})</div>
+                {myAlerts2.slice(0,3).map((a,i)=>(
+                  <div key={i} style={{ display:"flex",alignItems:"center",gap:10,padding:"7px 0",borderBottom:"1px solid rgba(255,255,255,0.05)" }}>
+                    <span style={{ fontSize:16 }}>{a.priority==="high"?"🔴":"🟡"}</span>
+                    <div style={{ flex:1,fontSize:12.5,fontWeight:700,color:a.priority==="high"?"#e84545":"#C8932B" }}>{a.msg}</div>
+                    <span style={{ fontSize:11,color:"rgba(255,255,255,0.35)" }}>{a.studentName}</span>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+
           {/* التذكيرات القادمة */}
           <div style={S.card}>
             <div style={{ fontWeight:700,fontSize:13,marginBottom:12 }}>⏰ تذكيراتي القادمة</div>
@@ -643,6 +750,30 @@ function OverviewTab({ allStudents, staffInfo, setActiveTab, setStatusFilter, S 
           ))}
         </div>
 
+        {/* إحصائيات المتابعة */}
+        {(() => {
+          const fs = getFupStats(staffInfo?.email) || getFupStats(staffInfo?.name);
+          if (!fs.overdue && !fs.today && !fs.pending) return null;
+          return (
+            <div style={{ ...S.card,marginBottom:14,border:fs.overdue>0?"1px solid rgba(232,69,69,0.25)":"1px solid rgba(47,123,110,0.2)",background:fs.overdue>0?"rgba(232,69,69,0.04)":"rgba(47,123,110,0.04)" }}>
+              <div style={{ fontWeight:700,fontSize:13,marginBottom:10 }}>🔄 متابعاتي</div>
+              <div style={{ display:"flex",gap:16 }}>
+                {[
+                  { label:"🔴 متأخرة", num:fs.overdue, color:"#e84545" },
+                  { label:"📅 اليوم",  num:fs.today,   color:"#C8932B" },
+                  { label:"🕐 قادمة",  num:fs.pending, color:"#2F7B6E" },
+                  { label:"✅ منجزة",  num:fs.done,    color:"rgba(255,255,255,0.35)" },
+                ].map((s,i)=>(
+                  <div key={i} style={{ textAlign:"center" }}>
+                    <div style={{ fontSize:22,fontWeight:800,color:s.color }}>{s.num}</div>
+                    <div style={{ fontSize:10.5,color:"rgba(255,255,255,0.45)",marginTop:2 }}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
         <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:14 }}>
           {/* مواعيد قادمة */}
           <div style={S.card}>
@@ -688,6 +819,26 @@ function OverviewTab({ allStudents, staffInfo, setActiveTab, setStatusFilter, S 
               <div style={{ fontSize:20,fontWeight:800,color:"#3B9DD4" }}>{myAppts.length}</div>
             </div>
           </div>
+
+          {/* تنبيهات الاستشاري */}
+          {(() => {
+            const myAlerts2 = getAlerts(allStudents, staffList).filter(a=>a.staffEmail===staffInfo?.email);
+            if (!myAlerts2.length) return null;
+            return (
+              <div style={{ ...S.card,gridColumn:"1/-1",border:"1px solid rgba(232,69,69,0.25)",background:"rgba(232,69,69,0.04)" }}>
+                <div style={{ fontWeight:700,fontSize:13,color:"#e84545",marginBottom:10 }}>🔴 تنبيهاتك ({myAlerts2.length})</div>
+                {myAlerts2.map((a,i)=>(
+                  <div key={i} style={{ display:"flex",alignItems:"center",gap:10,padding:"7px 0",borderBottom:"1px solid rgba(255,255,255,0.05)" }}>
+                    <span style={{ fontSize:16 }}>{a.priority==="high"?"🔴":"🟡"}</span>
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontSize:12.5,fontWeight:700,color:a.priority==="high"?"#e84545":"#C8932B" }}>{a.msg}</div>
+                      <div style={{ fontSize:11,color:"rgba(255,255,255,0.4)" }}>{a.studentName}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
 
           {/* ملفات قيد التجهيز */}
           <div style={{ ...S.card,gridColumn:"1/-1" }}>
@@ -822,6 +973,46 @@ function OverviewTab({ allStudents, staffInfo, setActiveTab, setStatusFilter, S 
             </div>
           ))}
         </div>
+        {/* متابعات الفريق للمدير */}
+        {(() => {
+          const fups = (() => { try{return JSON.parse(localStorage.getItem("masar_followups")||"[]");}catch{return [];} })();
+          const now2 = new Date();
+          const staffFup = staffList.filter(s=>s.role!=="admin").map(s => {
+            const myFups = fups.filter(f=>f.assignedTo===s.email||f.createdBy===s.name);
+            const overdue = myFups.filter(f=>!f.done&&f.date&&new Date(f.date)<now2);
+            const today   = myFups.filter(f=>!f.done&&f.date&&f.date.split("T")[0]===now2.toISOString().split("T")[0]);
+            const pending = myFups.filter(f=>!f.done&&f.date&&new Date(f.date)>=now2);
+            return { ...s, overdue:overdue.length, today:today.length, pending:pending.length, total:myFups.length };
+          }).filter(s=>s.total>0);
+          if (!staffFup.length) return null;
+          return (
+            <div style={{ ...S.card,gridColumn:"1/-1",marginBottom:0 }}>
+              <div style={{ fontWeight:700,fontSize:13,marginBottom:12 }}>🔄 متابعات الفريق</div>
+              <table style={{ width:"100%",borderCollapse:"collapse",fontSize:12.5 }}>
+                <thead>
+                  <tr>{["الموظف","الدور","اليوم","قادمة","🔴 متأخرة"].map(h=>(
+                    <th key={h} style={{ padding:"6px 10px",textAlign:"right",fontSize:10.5,fontWeight:700,color:"rgba(255,255,255,0.35)",borderBottom:"1px solid rgba(255,255,255,0.07)" }}>{h}</th>
+                  ))}</tr>
+                </thead>
+                <tbody>
+                  {staffFup.map(s=>(
+                    <tr key={s.email} style={{ background:s.overdue>0?"rgba(232,69,69,0.04)":"none" }}>
+                      <td style={{ padding:"8px 10px",fontWeight:700 }}>{s.name}</td>
+                      <td style={{ padding:"8px 10px",fontSize:11,color:"rgba(255,255,255,0.45)" }}>{ROLES[s.role]?.label||s.role}</td>
+                      <td style={{ padding:"8px 10px",color:s.today>0?"#C8932B":"rgba(255,255,255,0.4)",fontWeight:s.today>0?700:400 }}>{s.today}</td>
+                      <td style={{ padding:"8px 10px",color:"rgba(255,255,255,0.5)" }}>{s.pending}</td>
+                      <td style={{ padding:"8px 10px" }}>
+                        {s.overdue>0 ? <span style={{ fontSize:12,padding:"2px 8px",borderRadius:99,background:"rgba(232,69,69,0.15)",color:"#e84545",fontWeight:700 }}>🔴 {s.overdue}</span>
+                        : <span style={{ fontSize:12,color:"#2F7B6E" }}>✅ لا تأخير</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+        })()}
+
         <div style={{ ...S.card,gridColumn:"1/-1" }}>
           <div style={{ fontWeight:700,fontSize:13,marginBottom:14 }}>📋 سجل النشاط</div>
           {activity.length===0?<div style={{ color:"rgba(255,255,255,0.3)",fontSize:12,textAlign:"center",padding:16 }}>لا توجد نشاطات</div>
@@ -1011,46 +1202,58 @@ function StudentDetailTab({ student: initStudent, staffInfo, myRole, notes, setN
             </div>
           </div>
           {/* قسم المبلغ */}
-          <div style={{ borderTop:"1px solid rgba(255,255,255,0.07)", paddingTop:12, display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
-            <span style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>💰 المبلغ المدفوع:</span>
-            <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-              <input
-                type="number"
-                placeholder="أدخل المبلغ"
-                style={{ ...S.input, width:120, padding:"5px 10px", fontSize:12 }}
-                value={student.paidAmount || ""}
-                onChange={e => {
-                  updateProfile(student.email, { paidAmount: e.target.value });
-                  setStudent(prev => ({ ...prev, paidAmount: e.target.value }));
-                }}
-              />
-              <input
-                type="number"
-                placeholder="المبلغ الكلي"
-                style={{ ...S.input, width:130, padding:"5px 10px", fontSize:12 }}
-                value={student.totalAmount || ""}
-                onChange={e => {
-                  updateProfile(student.email, { totalAmount: e.target.value });
-                  setStudent(prev => ({ ...prev, totalAmount: e.target.value }));
-                }}
-              />
-              <select
-                style={{ ...S.input, width:"auto", padding:"5px 10px", fontSize:12, cursor:"pointer" }}
-                value={student.paymentStatus || "partial"}
-                onChange={e => {
-                  updateProfile(student.email, { paymentStatus: e.target.value });
-                  setStudent(prev => ({ ...prev, paymentStatus: e.target.value }));
-                }}
-              >
-                <option value="partial">دفع جزئي</option>
-                <option value="full">دفع مكتمل ✅</option>
-              </select>
+          <div style={{ borderTop:"1px solid rgba(255,255,255,0.07)", paddingTop:12 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", marginBottom:8 }}>
+              <span style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>💰 المبلغ المدفوع:</span>
+              <div style={{ display:"flex", gap:6, alignItems:"center" }}>
+                <input type="number" placeholder="المبلغ المدفوع" style={{ ...S.input, width:110, padding:"5px 10px", fontSize:12 }}
+                  value={student.paidAmount || ""}
+                  onChange={e => { updateProfile(student.email, { paidAmount: e.target.value }); setStudent(prev => ({ ...prev, paidAmount: e.target.value })); }} />
+                <select style={{ ...S.input, width:80, padding:"5px 8px", fontSize:12, cursor:"pointer" }}
+                  value={student.paidCurrency || "EGP"}
+                  onChange={e => { updateProfile(student.email, { paidCurrency: e.target.value }); setStudent(prev => ({ ...prev, paidCurrency: e.target.value })); }}>
+                  <option value="EGP">ج.م</option>
+                  <option value="USD">$</option>
+                  <option value="EUR">€</option>
+                  <option value="GBP">£</option>
+                </select>
+                <span style={{ fontSize:11, color:"rgba(255,255,255,0.35)" }}>/</span>
+                <input type="number" placeholder="المبلغ الكلي" style={{ ...S.input, width:110, padding:"5px 10px", fontSize:12 }}
+                  value={student.totalAmount || ""}
+                  onChange={e => { updateProfile(student.email, { totalAmount: e.target.value }); setStudent(prev => ({ ...prev, totalAmount: e.target.value })); }} />
+                <select style={{ ...S.input, width:80, padding:"5px 8px", fontSize:12, cursor:"pointer" }}
+                  value={student.totalCurrency || "EGP"}
+                  onChange={e => { updateProfile(student.email, { totalCurrency: e.target.value }); setStudent(prev => ({ ...prev, totalCurrency: e.target.value })); }}>
+                  <option value="EGP">ج.م</option>
+                  <option value="USD">$</option>
+                  <option value="EUR">€</option>
+                  <option value="GBP">£</option>
+                </select>
+                <select style={{ ...S.input, width:"auto", padding:"5px 10px", fontSize:12, cursor:"pointer" }}
+                  value={student.paymentStatus || "partial"}
+                  onChange={e => { updateProfile(student.email, { paymentStatus: e.target.value }); setStudent(prev => ({ ...prev, paymentStatus: e.target.value })); }}>
+                  <option value="partial">دفع جزئي</option>
+                  <option value="full">دفع مكتمل ✅</option>
+                </select>
+              </div>
             </div>
-            {student.paymentStatus === "partial" && student.paidAmount && (
-              <span style={{ fontSize:11, color:"#C8932B", fontWeight:700 }}>⚠️ دفع جزئي — المبلغ: {student.paidAmount}</span>
-            )}
-            {student.paymentStatus === "full" && (
-              <span style={{ fontSize:11, color:"#2F7B6E", fontWeight:700 }}>✅ الدفع مكتمل</span>
+            {/* عرض ملخص الدفع */}
+            {student.paidAmount && (
+              <div style={{ display:"flex", gap:12, flexWrap:"wrap" }}>
+                <span style={{ fontSize:11, color:"#2F7B6E", fontWeight:700 }}>
+                  💰 المدفوع: {student.paidAmount} {student.paidCurrency==="USD"?"$":student.paidCurrency==="EUR"?"€":student.paidCurrency==="GBP"?"£":"ج.م"}
+                </span>
+                {student.totalAmount && (
+                  <span style={{ fontSize:11, color:"rgba(255,255,255,0.5)" }}>
+                    / الكلي: {student.totalAmount} {student.totalCurrency==="USD"?"$":student.totalCurrency==="EUR"?"€":student.totalCurrency==="GBP"?"£":"ج.م"}
+                  </span>
+                )}
+                <span style={{ fontSize:11, padding:"1px 7px", borderRadius:99, fontWeight:700,
+                  background:student.paymentStatus==="full"?"rgba(47,123,110,0.15)":"rgba(200,147,43,0.15)",
+                  color:student.paymentStatus==="full"?"#2F7B6E":"#C8932B" }}>
+                  {student.paymentStatus==="full"?"✅ مكتمل":"⚠️ جزئي"}
+                </span>
+              </div>
             )}
           </div>
         </div>
@@ -1073,12 +1276,12 @@ function StudentDetailTab({ student: initStudent, staffInfo, myRole, notes, setN
             <div style={{ borderTop:"1px solid rgba(255,255,255,0.07)", paddingTop:10, display:"flex", alignItems:"center", gap:12, flexWrap:"wrap" }}>
               <span style={{ fontSize:12, color:"rgba(255,255,255,0.45)" }}>💰 المدفوع:</span>
               <span style={{ fontSize:13, fontWeight:700, color: student.paymentStatus==="full" ? "#2F7B6E" : "#C8932B" }}>
-                {student.paidAmount || "—"}
+                {student.paidAmount || "—"} {student.paidCurrency==="USD"?"$":student.paidCurrency==="EUR"?"€":student.paidCurrency==="GBP"?"£":"ج.م"}
               </span>
               {student.totalAmount && (
                 <>
                   <span style={{ fontSize:12, color:"rgba(255,255,255,0.3)" }}>/</span>
-                  <span style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>الكلي: <strong style={{ color:"#E8E4DA" }}>{student.totalAmount}</strong></span>
+                  <span style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>الكلي: <strong style={{ color:"#E8E4DA" }}>{student.totalAmount} {student.totalCurrency==="USD"?"$":student.totalCurrency==="EUR"?"€":student.totalCurrency==="GBP"?"£":"ج.م"}</strong></span>
                 </>
               )}
               <span style={{ fontSize:11, padding:"2px 8px", borderRadius:99, fontWeight:700,
@@ -1769,31 +1972,95 @@ function ReportsTab({ allStudents, S }) {
 }
 
 // ─── Payments Tab ────────────────────────────────────────────────────────────────
-function PaymentsTab({ allStudents, staffInfo, S }) {
-  // السيلز يشوف مدفوعات عملاؤه بس
-  const myRole = getStaffList().find(s=>s.email===staffInfo?.email)?.role;
-  const paid = allStudents.filter(s => s.paidAmount && (myRole==="admin" || s.assignedSales===staffInfo?.email || !s.assignedSales));
-  const totalIncome = paid.reduce((sum, s) => sum + (parseFloat(s.paidAmount)||0), 0);
-  const totalExpected = paid.reduce((sum, s) => sum + (parseFloat(s.totalAmount)||0), 0);
-  const remaining = totalExpected - totalIncome;
+// ─── Currency helpers ─────────────────────────────────────────────────────────
+const CURRENCIES = [
+  { code:"EGP", symbol:"ج.م",  label:"جنيه مصري"      },
+  { code:"USD", symbol:"$",    label:"دولار أمريكي"    },
+  { code:"EUR", symbol:"€",    label:"يورو"            },
+  { code:"GBP", symbol:"£",    label:"جنيه إسترليني"  },
+  { code:"SAR", symbol:"ر.س",  label:"ريال سعودي"     },
+  { code:"AED", symbol:"د.إ",  label:"درهم إماراتي"   },
+  { code:"TRY", symbol:"₺",    label:"ليرة تركية"     },
+];
+function currSymbol(code) { return CURRENCIES.find(c=>c.code===code)?.symbol || code; }
 
-  const exportExcel = () => {
-    const rows = paid.map(s => ({
-      "الاسم": s.name,
-      "البريد": s.email,
-      "السيلز المسؤول": s.assignedSales ? getStaffList().find(st=>st.email===s.assignedSales)?.name||s.assignedSales : "—",
-      "الخدمة": s.serviceType || s.scholarship || "—",
-      "المبلغ المدفوع": s.paidAmount || "—",
-      "المبلغ الكلي": s.totalAmount || "—",
-      "المتبقي": s.totalAmount ? (parseFloat(s.totalAmount) - parseFloat(s.paidAmount||0)) : "—",
-      "حالة الدفع": s.paymentStatus === "full" ? "مكتمل" : "جزئي",
-      "طريقة الدفع": s.paymentMethod || "—",
-      "تاريخ التسجيل": new Date(s.createdAt).toLocaleDateString("ar-EG"),
+function PaymentsTab({ allStudents, staffInfo, S }) {
+  const { updateProfile } = useStudent();
+  const staffList = getStaffList();
+  const myRole    = staffList.find(s=>s.email===staffInfo?.email)?.role;
+
+  // السيلز يشوف عملاؤه بس، الأدمن يشوف الكل
+  const visibleStudents = myRole==="admin"
+    ? allStudents
+    : allStudents.filter(s => s.assignedSales===staffInfo?.email || !s.assignedSales);
+
+  const paid = visibleStudents.filter(s => s.paidAmount);
+
+  // ── فلاتر ──
+  const consultants = [...new Set(allStudents.map(s=>s.assignedConsultant).filter(Boolean))];
+  const [filterConsultant, setFilterConsultant] = useState("all");
+  const [filterCurrency,   setFilterCurrency]   = useState("all");
+  const [filterStatus,     setFilterStatus]     = useState("all");
+  const [search,           setSearch]           = useState("");
+
+  const filtered = paid.filter(s => {
+    if (filterConsultant!=="all" && s.assignedConsultant!==filterConsultant) return false;
+    if (filterCurrency!=="all"   && (s.paidCurrency||"EGP")!==filterCurrency) return false;
+    if (filterStatus!=="all"     && (s.paymentStatus||"partial")!==filterStatus) return false;
+    if (search && !s.name?.includes(search) && !s.email?.includes(search)) return false;
+    return true;
+  });
+
+  // ── modal إضافة دفعة ──
+  const [showModal, setShowModal] = useState(false);
+  const [payForm,   setPayForm]   = useState({ studentEmail:"", amount:"", currency:"EGP", method:"إيصال", status:"partial", note:"" });
+  const [saved,     setSaved]     = useState(false);
+
+  const handleAddPayment = () => {
+    if (!payForm.studentEmail || !payForm.amount) { alert("اختر العميل وأدخل المبلغ"); return; }
+    const st = allStudents.find(s=>s.email===payForm.studentEmail);
+    if (!st) return;
+    updateProfile(payForm.studentEmail, {
+      paidAmount:          payForm.amount,
+      paidCurrency:        payForm.currency,
+      paymentMethod:       payForm.method,
+      paymentStatus:       payForm.status,
+      paymentConfirmed:    true,
+      paymentNote:         payForm.note,
+      paymentRecordedBy:   staffInfo?.name || staffInfo?.email,
+      paymentDate:         new Date().toISOString(),
+    });
+    addActivity(`تم تسجيل دفعة ${payForm.amount} ${currSymbol(payForm.currency)} للعميل ${st.name}`, staffInfo?.name);
+    setSaved(true);
+    setTimeout(()=>{ setSaved(false); setShowModal(false); setPayForm({ studentEmail:"", amount:"", currency:"EGP", method:"إيصال", status:"partial", note:"" }); }, 1200);
+  };
+
+  // ── إحصائيات حسب عملة ──
+  const statsByCurrency = CURRENCIES.map(cur=>({
+    ...cur,
+    total: paid.filter(s=>(s.paidCurrency||"EGP")===cur.code).reduce((sum,s)=>sum+(parseFloat(s.paidAmount)||0),0),
+    count: paid.filter(s=>(s.paidCurrency||"EGP")===cur.code).length,
+  })).filter(c=>c.count>0);
+
+  // ── تصدير CSV ──
+  const exportCSV = () => {
+    const rows = filtered.map(s=>({
+      "العميل":           s.name,
+      "البريد":           s.email,
+      "الاستشاري":       s.assignedConsultant ? staffList.find(st=>st.email===s.assignedConsultant)?.name||s.assignedConsultant : "—",
+      "السيلز":          s.assignedSales ? staffList.find(st=>st.email===s.assignedSales)?.name||s.assignedSales : "—",
+      "المبلغ المدفوع":  s.paidAmount||"—",
+      "العملة":          currSymbol(s.paidCurrency||"EGP")+" "+( s.paidCurrency||"EGP"),
+      "المبلغ الكلي":    s.totalAmount||"—",
+      "المتبقي":         s.totalAmount?(parseFloat(s.totalAmount)-parseFloat(s.paidAmount||0)):"—",
+      "حالة الدفع":      s.paymentStatus==="full"?"مكتمل":"جزئي",
+      "طريقة الدفع":     s.paymentMethod||"—",
+      "سجّله":           s.paymentRecordedBy||"—",
+      "تاريخ الدفع":     s.paymentDate?new Date(s.paymentDate).toLocaleDateString("ar-EG"):new Date(s.createdAt).toLocaleDateString("ar-EG"),
     }));
-    // تصدير CSV بسيط
     const headers = Object.keys(rows[0]||{});
-    const csv = [headers.join(","), ...rows.map(r => headers.map(h => `"${r[h]}"`).join(","))].join("\n");
-    const blob = new Blob(["﻿"+csv], { type:"text/csv;charset=utf-8" });
+    const csv = [headers.join(","), ...rows.map(r=>headers.map(h=>`"${r[h]}"`).join(","))].join("\n");
+    const blob = new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8"});
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = `مدفوعات_مسار_${new Date().toLocaleDateString("ar-EG").replace(/\//g,"-")}.csv`;
@@ -1802,78 +2069,185 @@ function PaymentsTab({ allStudents, staffInfo, S }) {
 
   return (
     <div>
-      {/* Stats */}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12, marginBottom:16 }}>
-        {[
-          { label:"إجمالي الدخل",     num: totalIncome.toLocaleString()+" ج", color:"#2F7B6E", icon:"ti-cash"       },
-          { label:"المبلغ المتوقع",   num: totalExpected.toLocaleString()+" ج", color:"#C8932B", icon:"ti-chart-line" },
-          { label:"المتبقي",          num: remaining.toLocaleString()+" ج",    color: remaining>0?"#e84545":"#2F7B6E", icon:"ti-clock"     },
-          { label:"عدد العملاء",      num: paid.length,                        color:"#6B5DD3", icon:"ti-users"      },
-        ].map((s,i) => (
-          <div key={i} style={S.card}>
-            <div style={{ width:34,height:34,borderRadius:8,background:`${s.color}18`,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:8 }}>
-              <i className={`ti ${s.icon}`} style={{ fontSize:18,color:s.color }} />
-            </div>
-            <div style={{ fontSize:22,fontWeight:800,color:s.color,lineHeight:1 }}>{s.num}</div>
-            <div style={{ fontSize:11,color:"rgba(255,255,255,0.45)",marginTop:3 }}>{s.label}</div>
+      {/* ── إحصائيات حسب عملة ── */}
+      <div style={{ display:"flex", gap:10, flexWrap:"wrap", marginBottom:16 }}>
+        {statsByCurrency.length===0 ? (
+          <div style={{ ...S.card, flex:1, textAlign:"center", color:"rgba(255,255,255,0.3)", fontSize:12, padding:24 }}>لا توجد مدفوعات بعد 💰</div>
+        ) : statsByCurrency.map(cur=>(
+          <div key={cur.code} style={{ ...S.card, minWidth:130, flex:1 }}>
+            <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", marginBottom:4 }}>{cur.label}</div>
+            <div style={{ fontSize:22, fontWeight:800, color:"#C8932B", lineHeight:1 }}>{cur.symbol} {cur.total.toLocaleString()}</div>
+            <div style={{ fontSize:11, color:"rgba(255,255,255,0.35)", marginTop:3 }}>{cur.count} عميل</div>
           </div>
         ))}
+        <div style={{ ...S.card, minWidth:130, flex:1 }}>
+          <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", marginBottom:4 }}>إجمالي العملاء</div>
+          <div style={{ fontSize:22, fontWeight:800, color:"#6B5DD3", lineHeight:1 }}>{paid.length}</div>
+          <div style={{ fontSize:11, color:"rgba(255,255,255,0.35)", marginTop:3 }}>دفعوا</div>
+        </div>
       </div>
 
-      {/* جدول المدفوعات */}
-      <div style={S.card}>
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
-          <span style={{ fontWeight:700, fontSize:13 }}>💳 سجل المدفوعات</span>
-          <button style={S.btn} onClick={exportExcel}>
-            <i className="ti ti-file-spreadsheet" style={{ fontSize:13 }} /> تصدير CSV
-          </button>
+      {/* ── فلاتر + زرار إضافة ── */}
+      <div style={{ ...S.card, display:"flex", flexWrap:"wrap", gap:8, alignItems:"center", marginBottom:12 }}>
+        <input style={{ ...S.input, width:160, padding:"6px 10px", fontSize:12 }} placeholder="🔍 بحث..." value={search} onChange={e=>setSearch(e.target.value)} />
+        {myRole==="admin" && (
+          <select style={{ ...S.input, width:"auto", padding:"6px 10px", fontSize:12 }} value={filterConsultant} onChange={e=>setFilterConsultant(e.target.value)}>
+            <option value="all">كل الاستشاريين</option>
+            {consultants.map(c=><option key={c} value={c}>{staffList.find(s=>s.email===c)?.name||c}</option>)}
+          </select>
+        )}
+        <select style={{ ...S.input, width:"auto", padding:"6px 10px", fontSize:12 }} value={filterCurrency} onChange={e=>setFilterCurrency(e.target.value)}>
+          <option value="all">كل العملات</option>
+          {CURRENCIES.map(c=><option key={c.code} value={c.code}>{c.symbol} {c.label}</option>)}
+        </select>
+        <select style={{ ...S.input, width:"auto", padding:"6px 10px", fontSize:12 }} value={filterStatus} onChange={e=>setFilterStatus(e.target.value)}>
+          <option value="all">كل الحالات</option>
+          <option value="full">✅ مكتمل</option>
+          <option value="partial">⚠️ جزئي</option>
+        </select>
+        <div style={{ marginRight:"auto", display:"flex", gap:8 }}>
+          <button style={S.btnOut} onClick={exportCSV}><i className="ti ti-file-spreadsheet" style={{ fontSize:13 }} /> تصدير CSV</button>
+          <button style={S.btn}    onClick={()=>setShowModal(true)}><i className="ti ti-plus" style={{ fontSize:13 }} /> تسجيل دفعة</button>
         </div>
-        {paid.length === 0 ? (
+      </div>
+
+      {/* ── جدول ── */}
+      <div style={S.card}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+          <span style={{ fontWeight:700, fontSize:13 }}>💳 سجل المدفوعات</span>
+          <span style={{ fontSize:11, color:"rgba(255,255,255,0.35)" }}>{filtered.length} سجل</span>
+        </div>
+        {filtered.length===0 ? (
           <div style={{ textAlign:"center", color:"rgba(255,255,255,0.3)", padding:"32px 0", fontSize:12 }}>
-            <div style={{ fontSize:28, marginBottom:8 }}>💰</div>
-            لا توجد مدفوعات بعد
+            <div style={{ fontSize:28, marginBottom:8 }}>💰</div>لا توجد نتائج
           </div>
         ) : (
-          <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12.5 }}>
-            <thead>
-              <tr>
-                {["العميل","السيلز المسؤول","الخدمة","المدفوع","الكلي","المتبقي","حالة الدفع","الطريقة","التاريخ"].map(h => (
-                  <th key={h} style={{ padding:"8px 10px", textAlign:"right", fontSize:10.5, fontWeight:700, color:"rgba(255,255,255,0.35)", borderBottom:"1px solid rgba(255,255,255,0.07)" }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {paid.map(s => {
-                const rem = s.totalAmount ? parseFloat(s.totalAmount) - parseFloat(s.paidAmount||0) : null;
-                return (
-                  <tr key={s.email}>
-                    <td style={{ padding:"10px" }}>
-                      <div style={{ fontWeight:700 }}>{s.name}</div>
-                      <div style={{ fontSize:10.5, color:"rgba(255,255,255,0.35)" }}>{s.email}</div>
-                    </td>
-                    <td style={{ padding:"10px", fontSize:12, color:"rgba(255,255,255,0.6)" }}>
-                      {s.assignedSales ? getStaffList().find(st=>st.email===s.assignedSales)?.name || s.assignedSales : "—"}
-                    </td>
-                    <td style={{ padding:"10px", fontSize:12, color:"rgba(255,255,255,0.6)" }}>{s.serviceType || s.scholarship || "—"}</td>
-                    <td style={{ padding:"10px", fontWeight:700, color:"#2F7B6E" }}>{s.paidAmount || "—"}</td>
-                    <td style={{ padding:"10px", color:"rgba(255,255,255,0.5)" }}>{s.totalAmount || "—"}</td>
-                    <td style={{ padding:"10px", color: rem > 0 ? "#e84545" : "#2F7B6E", fontWeight:700 }}>{rem !== null ? rem.toLocaleString() : "—"}</td>
-                    <td style={{ padding:"10px" }}>
-                      <span style={{ padding:"3px 8px", borderRadius:99, fontSize:11, fontWeight:700,
-                        background: s.paymentStatus==="full" ? "rgba(47,123,110,0.15)" : "rgba(200,147,43,0.15)",
-                        color: s.paymentStatus==="full" ? "#2F7B6E" : "#C8932B" }}>
-                        {s.paymentStatus === "full" ? "✅ مكتمل" : "⚠️ جزئي"}
-                      </span>
-                    </td>
-                    <td style={{ padding:"10px", fontSize:11, color:"rgba(255,255,255,0.4)" }}>{s.paymentMethod || "—"}</td>
-                    <td style={{ padding:"10px", fontSize:11, color:"rgba(255,255,255,0.35)" }}>{new Date(s.createdAt).toLocaleDateString("ar-EG")}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div style={{ overflowX:"auto" }}>
+            <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+              <thead>
+                <tr>
+                  {["العميل","الاستشاري","السيلز","المدفوع","العملة","المتبقي","حالة الدفع","الطريقة","سجّله","التاريخ"].map(h=>(
+                    <th key={h} style={{ padding:"8px 10px", textAlign:"right", fontSize:10.5, fontWeight:700, color:"rgba(255,255,255,0.35)", borderBottom:"1px solid rgba(255,255,255,0.07)", whiteSpace:"nowrap" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(s=>{
+                  const rem = s.totalAmount ? parseFloat(s.totalAmount)-parseFloat(s.paidAmount||0) : null;
+                  const cur = s.paidCurrency||"EGP";
+                  return (
+                    <tr key={s.email} style={{ borderBottom:"1px solid rgba(255,255,255,0.04)" }}>
+                      <td style={{ padding:"10px" }}>
+                        <div style={{ fontWeight:700 }}>{s.name}</div>
+                        <div style={{ fontSize:10, color:"rgba(255,255,255,0.3)" }}>{s.email}</div>
+                      </td>
+                      <td style={{ padding:"10px", fontSize:11.5, color:"#2F7B6E", fontWeight:600 }}>
+                        {s.assignedConsultant ? staffList.find(st=>st.email===s.assignedConsultant)?.name||s.assignedConsultant : "—"}
+                      </td>
+                      <td style={{ padding:"10px", fontSize:11.5, color:"#6B5DD3", fontWeight:600 }}>
+                        {s.assignedSales ? staffList.find(st=>st.email===s.assignedSales)?.name||s.assignedSales : "—"}
+                      </td>
+                      <td style={{ padding:"10px", fontWeight:800, color:"#C8932B", fontSize:13 }}>
+                        {parseFloat(s.paidAmount||0).toLocaleString()}
+                      </td>
+                      <td style={{ padding:"10px" }}>
+                        <span style={{ padding:"3px 8px", borderRadius:6, fontSize:11, fontWeight:700, background:"rgba(200,147,43,0.15)", color:"#C8932B", whiteSpace:"nowrap" }}>
+                          {currSymbol(cur)} {cur}
+                        </span>
+                      </td>
+                      <td style={{ padding:"10px", fontWeight:700, color:rem>0?"#e84545":"#2F7B6E", fontSize:12 }}>
+                        {rem!==null ? `${rem.toLocaleString()} ${currSymbol(s.totalCurrency||cur)}` : "—"}
+                      </td>
+                      <td style={{ padding:"10px" }}>
+                        <span style={{ padding:"3px 8px", borderRadius:99, fontSize:11, fontWeight:700,
+                          background:s.paymentStatus==="full"?"rgba(47,123,110,0.15)":"rgba(200,147,43,0.15)",
+                          color:s.paymentStatus==="full"?"#2F7B6E":"#C8932B" }}>
+                          {s.paymentStatus==="full"?"✅ مكتمل":"⚠️ جزئي"}
+                        </span>
+                      </td>
+                      <td style={{ padding:"10px", fontSize:11, color:"rgba(255,255,255,0.4)" }}>{s.paymentMethod||"—"}</td>
+                      <td style={{ padding:"10px", fontSize:11, color:"rgba(255,255,255,0.4)" }}>{s.paymentRecordedBy||"—"}</td>
+                      <td style={{ padding:"10px", fontSize:11, color:"rgba(255,255,255,0.3)", whiteSpace:"nowrap" }}>
+                        {s.paymentDate ? new Date(s.paymentDate).toLocaleDateString("ar-EG") : new Date(s.createdAt).toLocaleDateString("ar-EG")}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
+
+      {/* ── Modal تسجيل دفعة ── */}
+      {showModal && (
+        <div style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999 }}>
+          <div style={{ background:"#162035",border:"1px solid rgba(255,255,255,0.1)",borderRadius:16,padding:24,width:440,maxWidth:"95vw",direction:"rtl" }}>
+            <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:18 }}>
+              <span style={{ fontWeight:800,fontSize:15 }}>💳 تسجيل دفعة جديدة</span>
+              <button style={{ background:"none",border:"none",cursor:"pointer",color:"rgba(255,255,255,0.4)",fontSize:18 }} onClick={()=>setShowModal(false)}>✕</button>
+            </div>
+
+            {/* العميل */}
+            <div style={{ marginBottom:12 }}>
+              <label style={S.label}>العميل *</label>
+              <select style={S.input} value={payForm.studentEmail} onChange={e=>setPayForm(p=>({...p,studentEmail:e.target.value}))}>
+                <option value="">— اختر العميل —</option>
+                {visibleStudents.map(s=><option key={s.email} value={s.email}>{s.name} ({s.email})</option>)}
+              </select>
+              {payForm.studentEmail && (()=>{
+                const st = allStudents.find(s=>s.email===payForm.studentEmail);
+                const cons = st?.assignedConsultant ? staffList.find(x=>x.email===st.assignedConsultant)?.name : null;
+                return cons ? <div style={{ marginTop:5,fontSize:11,color:"#2F7B6E" }}>👤 الاستشاري: {cons}</div> : null;
+              })()}
+            </div>
+
+            {/* المبلغ + العملة */}
+            <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12 }}>
+              <div>
+                <label style={S.label}>المبلغ المدفوع *</label>
+                <input type="number" style={S.input} placeholder="0" value={payForm.amount} onChange={e=>setPayForm(p=>({...p,amount:e.target.value}))} />
+              </div>
+              <div>
+                <label style={S.label}>العملة</label>
+                <select style={S.input} value={payForm.currency} onChange={e=>setPayForm(p=>({...p,currency:e.target.value}))}>
+                  {CURRENCIES.map(c=><option key={c.code} value={c.code}>{c.symbol} — {c.label}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {/* طريقة + حالة */}
+            <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12 }}>
+              <div>
+                <label style={S.label}>طريقة الدفع</label>
+                <select style={S.input} value={payForm.method} onChange={e=>setPayForm(p=>({...p,method:e.target.value}))}>
+                  {["إيصال","InstaPay","فودافون كاش","تحويل بنكي","Western Union","نقدي","بطاقة ائتمان"].map(m=><option key={m}>{m}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={S.label}>حالة الدفع</label>
+                <select style={S.input} value={payForm.status} onChange={e=>setPayForm(p=>({...p,status:e.target.value}))}>
+                  <option value="partial">⚠️ جزئي</option>
+                  <option value="full">✅ مكتمل</option>
+                </select>
+              </div>
+            </div>
+
+            {/* ملاحظة */}
+            <div style={{ marginBottom:18 }}>
+              <label style={S.label}>ملاحظة (اختياري)</label>
+              <textarea style={{ ...S.textarea,minHeight:50 }} placeholder="أي تفاصيل إضافية..." value={payForm.note} onChange={e=>setPayForm(p=>({...p,note:e.target.value}))} />
+            </div>
+
+            <div style={{ display:"flex",gap:8,justifyContent:"flex-end" }}>
+              <button style={S.btnOut} onClick={()=>setShowModal(false)}>إلغاء</button>
+              <button style={{ ...S.btn,background:saved?"#2F7B6E":"#C8932B",color:saved?"#fff":"#13213B",transition:".2s" }} onClick={handleAddPayment}>
+                {saved ? "✅ تم الحفظ!" : "💾 تسجيل الدفعة"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -2162,7 +2536,14 @@ function ScheduleTab({ staffInfo, allStudents, S }) {
     if (!form.date||!form.time) { alert("يرجى تحديد التاريخ والوقت"); return; }
     const student = allStudents.find(s=>s.email===form.studentEmail);
     const staffMember = staff.find(s=>s.email===form.staffEmail);
-    save([...appointments, { ...form, id:Date.now().toString(), createdAt:new Date().toISOString() }]);
+    const newAppt = { ...form, id:Date.now().toString(), createdAt:new Date().toISOString() };
+    save([...appointments, newAppt]);
+    // إضافة تلقائية في قائمة المتابعات
+    try {
+      const fups = JSON.parse(localStorage.getItem("masar_followups")||"[]");
+      fups.push({ id:"appt_"+newAppt.id, studentEmail:form.studentEmail, type:form.type||"اجتماع", date:`${form.date}T${form.time}`, note:`موعد ${form.type} - ${form.notes||""}`, assignedTo:form.staffEmail, done:false, fromSchedule:true, createdBy:staffMember?.name||"موظف", createdAt:new Date().toISOString() });
+      localStorage.setItem("masar_followups", JSON.stringify(fups));
+    } catch {}
 
     // إرسال رسالة واتساب للطالب
     if (student?.phone) {
@@ -2476,6 +2857,68 @@ function SiteChatTab({ staffInfo, S }) {
 
 // ─── WhatsApp Tab ─────────────────────────────────────────────────────────────
 const WA_LABEL_COLORS = ["#25D366","#C8932B","#6B5DD3","#e84545","#3B9DD4","#2F7B6E","#E8823A"];
+
+// ─── حساب التنبيهات والتأخيرات ───────────────────────────────────────────────
+function getAlerts(allStudents, staffList) {
+  const alerts = [];
+  const now    = new Date();
+
+  // 1. تذكيرات متأخرة (السيلز)
+  allStudents.forEach(s => {
+    const salesEmail = s.assignedSales;
+    const salesName  = staffList.find(st=>st.email===salesEmail)?.name;
+    try {
+      const rems = JSON.parse(localStorage.getItem(`masar_rem_${s.email}`)||"[]");
+      rems.filter(r=>!r.done&&r.date&&new Date(r.date)<now).forEach(r=>{
+        const hoursLate = Math.round((now-new Date(r.date))/3600000);
+        alerts.push({ type:"overdue_reminder", priority:hoursLate>24?"high":"medium", studentName:s.name, studentEmail:s.email, staffName:salesName||"غير محدد", staffEmail:salesEmail, msg:`تذكير متأخر: ${r.title} (${hoursLate} ساعة)`, role:"sales" });
+      });
+    } catch {}
+  });
+
+  // 2. طالب دفع ومفيش رد من استشاري +48 ساعة
+  allStudents.filter(s=>s.paymentConfirmed&&s.assignedConsultant).forEach(s=>{
+    const consultEmail = s.assignedConsultant;
+    const consultName  = staffList.find(st=>st.email===consultEmail)?.name;
+    const hasAnyReply  = ["motivationLetter","recommendation1","cv"].some(k=>s[k]?.staffReply);
+    if (!hasAnyReply && s.paymentConfirmedAt) {
+      const hoursElapsed = Math.round((now-new Date(s.paymentConfirmedAt))/3600000);
+      if (hoursElapsed > 48) {
+        alerts.push({ type:"no_reply", priority:"high", studentName:s.name, studentEmail:s.email, staffName:consultName||"غير محدد", staffEmail:consultEmail, msg:`لم يُرفع أي رد منذ ${hoursElapsed} ساعة من تأكيد الدفع`, role:"consultant" });
+      }
+    }
+  });
+
+  // 3. موعد قادم خلال 30 دقيقة - تنبيه عاجل
+  try {
+    const schedule = JSON.parse(localStorage.getItem("masar_schedule")||"[]");
+    schedule.forEach(a => {
+      const apptTime = new Date(`${a.date}T${a.time}`);
+      const diff = (apptTime-now)/60000;
+      if (diff > 0 && diff <= 30) {
+        const st = allStudents.find(s=>s.email===a.studentEmail);
+        const staffMember = staffList.find(s=>s.email===a.staffEmail);
+        alerts.push({ type:"upcoming_appt", priority:"high", studentName:st?.name||a.studentEmail, studentEmail:a.studentEmail, staffName:staffMember?.name||"غير محدد", staffEmail:a.staffEmail, msg:`⚡ موعد عاجل خلال ${Math.round(diff)} دقيقة مع ${st?.name}`, role:staffMember?.role||"consultant" });
+      } else if (diff > 30 && diff <= 60) {
+        const st = allStudents.find(s=>s.email===a.studentEmail);
+        const staffMember = staffList.find(s=>s.email===a.staffEmail);
+        alerts.push({ type:"upcoming_appt", priority:"medium", studentName:st?.name||a.studentEmail, studentEmail:a.studentEmail, staffName:staffMember?.name||"غير محدد", staffEmail:a.staffEmail, msg:`موعد قادم خلال ${Math.round(diff)} دقيقة مع ${st?.name}`, role:staffMember?.role||"consultant" });
+      }
+    });
+  } catch {}
+
+  // 4. follow-ups فاتت ولم تُنجز (من الماركتينج)
+  try {
+    const fups = JSON.parse(localStorage.getItem("masar_followups")||"[]");
+    fups.filter(f=>!f.done&&f.date&&new Date(f.date)<now).forEach(f=>{
+      const st = allStudents.find(s=>s.email===f.studentEmail);
+      const hoursLate = Math.round((now-new Date(f.date))/3600000);
+      alerts.push({ type:"overdue_followup", priority:hoursLate>24?"high":"medium", studentName:st?.name||f.studentEmail, studentEmail:f.studentEmail, staffName:"غير محدد", staffEmail:"", msg:`متابعة فائتة: ${f.note||f.type} (${hoursLate} ساعة)`, role:"sales" });
+    });
+  } catch {}
+
+  return alerts.sort((a,b)=>a.priority==="high"&&b.priority!=="high"?-1:1);
+}
 
 // ─── إرسال رسالة للواتساب الداخلي (masar_wa_messages) ────────────────────────
 function sendInternalWaMsg(studentEmail, text, staffName) {
@@ -2793,3 +3236,1122 @@ function WhatsAppTab({ allStudents, mode, staffInfo, S }) {
 }
 
 
+
+// ─── Marketing Tab ────────────────────────────────────────────────────────────
+function MarketingTab({ allStudents, S }) {
+  const [tab, setTab]       = useState("overview");
+  const [campaigns, setCampaigns] = useState(()=>{ try{return JSON.parse(localStorage.getItem("masar_campaigns")||"[]");}catch{return [];} });
+  const [modal, setModal]   = useState(false);
+  const [form, setForm]     = useState({ title:"", channel:"واتساب", target:"all", message:"", status:"draft", budget:"", startDate:"", endDate:"" });
+  const [followUps, setFollowUps] = useState(()=>{ try{return JSON.parse(localStorage.getItem("masar_followups")||"[]");}catch{return [];} });
+  const [fuModal, setFuModal] = useState(false);
+  const [fuForm, setFuForm] = useState({ studentEmail:"", type:"واتساب", date:"", note:"", done:false });
+
+  const saveCampaigns = (l)=>{ setCampaigns(l); localStorage.setItem("masar_campaigns",JSON.stringify(l)); };
+  const saveFollowUps = (l)=>{ setFollowUps(l); localStorage.setItem("masar_followups",JSON.stringify(l)); };
+
+  // إحصائيات
+  const totalLeads   = allStudents.length;
+  const registered   = allStudents.filter(s=>s.status==="registered").length;
+  const potential    = allStudents.filter(s=>s.status==="potential").length;
+  const newLeads     = allStudents.filter(s=>s.status==="new").length;
+  const convRate     = totalLeads ? Math.round(registered/totalLeads*100) : 0;
+  const activeCamps  = campaigns.filter(c=>c.status==="active").length;
+
+  // مصادر العملاء
+  const bySource = {};
+  try { JSON.parse(localStorage.getItem("masar_leads")||"[]").forEach(l=>{ bySource[l.source||"غير محدد"]=(bySource[l.source||"غير محدد"]||0)+1; }); } catch {}
+  bySource["تسجيل مباشر"] = totalLeads;
+
+  // follow-ups متأخرة
+  const overdueFollowUps = followUps.filter(f=>!f.done&&f.date&&new Date(f.date)<new Date());
+  const todayFollowUps   = followUps.filter(f=>!f.done&&f.date&&f.date.split("T")[0]===new Date().toISOString().split("T")[0]);
+
+  const CHANNELS = ["واتساب","إيميل","انستجرام","فيسبوك","تيك توك","يوتيوب","جوجل","SMS"];
+  const CH_ICON  = {"واتساب":"📱","إيميل":"📧","انستجرام":"📸","فيسبوك":"👥","تيك توك":"🎵","يوتيوب":"▶️","جوجل":"🔍","SMS":"💬"};
+  const ST_STYLE = { draft:{l:"مسودة",c:"rgba(255,255,255,0.4)"}, active:{l:"✅ نشطة",c:"#2F7B6E"}, paused:{l:"⏸ متوقفة",c:"#C8932B"}, done:{l:"✓ منتهية",c:"rgba(255,255,255,0.3)"} };
+
+  return (
+    <div>
+      {/* Tabs */}
+      <div style={{ display:"flex",gap:6,marginBottom:16,flexWrap:"wrap" }}>
+        {[["overview","📊 نظرة عامة"],["campaigns","📣 الحملات"],["social","🌐 السوشيال ميديا"],["tools","⚡ أدوات"]].map(([v,l])=>(
+          <button key={v} onClick={()=>setTab(v)} style={{ padding:"7px 16px",borderRadius:8,border:tab===v?"none":"1px solid rgba(255,255,255,0.12)",background:tab===v?"#C8932B":"none",color:tab===v?"#13213B":"rgba(255,255,255,0.6)",cursor:"pointer",fontFamily:"inherit",fontSize:12.5,fontWeight:700 }}>{l}</button>
+        ))}
+        {overdueFollowUps.length>0 && <span style={{ marginRight:"auto",padding:"6px 12px",borderRadius:8,background:"rgba(232,69,69,0.12)",border:"1px solid rgba(232,69,69,0.25)",fontSize:11,color:"#e84545",fontWeight:700 }}>🔴 {overdueFollowUps.length} متابعة متأخرة</span>}
+      </div>
+
+      {/* ── نظرة عامة ── */}
+      {tab==="overview" && (
+        <div>
+          <div style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:16 }}>
+            {[
+              { label:"إجمالي العملاء",   num:totalLeads,   color:"#2F7B6E", icon:"👥" },
+              { label:"محتملون",           num:potential,    color:"#C8932B", icon:"🎯" },
+              { label:"مسجلون",            num:registered,   color:"#6B5DD3", icon:"✅" },
+              { label:"جدد",              num:newLeads,     color:"#E8823A", icon:"🆕" },
+              { label:"معدل التحويل",     num:`${convRate}%`,color:"#3B9DD4", icon:"📈" },
+              { label:"حملات نشطة",       num:activeCamps,  color:"#25D366", icon:"📣" },
+            ].map((s,i)=>(
+              <div key={i} style={{ ...S.card,marginBottom:0,display:"flex",alignItems:"center",gap:10 }}>
+                <span style={{ fontSize:22 }}>{s.icon}</span>
+                <div>
+                  <div style={{ fontSize:22,fontWeight:800,color:s.color,lineHeight:1 }}>{s.num}</div>
+                  <div style={{ fontSize:11,color:"rgba(255,255,255,0.45)",marginTop:2 }}>{s.label}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Funnel */}
+          <div style={{ ...S.card,marginBottom:14 }}>
+            <div style={{ fontWeight:700,fontSize:13,marginBottom:14 }}>🏆 مسار التحويل</div>
+            {[
+              { label:"عملاء جدد",      num:newLeads,   total:totalLeads, color:"#E8823A" },
+              { label:"محتملون",         num:potential,  total:totalLeads, color:"#C8932B" },
+              { label:"مسجلون",          num:registered, total:totalLeads, color:"#2F7B6E" },
+            ].map((s,i)=>(
+              <div key={i} style={{ marginBottom:12 }}>
+                <div style={{ display:"flex",justifyContent:"space-between",marginBottom:4 }}>
+                  <span style={{ fontSize:12 }}>{s.label}</span>
+                  <span style={{ fontSize:12,fontWeight:700,color:s.color }}>{s.num} ({totalLeads?Math.round(s.num/totalLeads*100):0}%)</span>
+                </div>
+                <div style={{ height:10,borderRadius:99,background:"rgba(255,255,255,0.06)",overflow:"hidden" }}>
+                  <div style={{ height:"100%",background:s.color,width:totalLeads?`${s.num/totalLeads*100}%`:"0%",borderRadius:99,transition:".5s" }} />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* مصادر */}
+          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:14 }}>
+            <div style={S.card}>
+              <div style={{ fontWeight:700,fontSize:13,marginBottom:12 }}>📊 مصادر العملاء</div>
+              {Object.entries(bySource).filter(([,v])=>v>0).map(([src,count])=>(
+                <div key={src} style={{ display:"flex",alignItems:"center",gap:8,padding:"7px 0",borderBottom:"1px solid rgba(255,255,255,0.05)" }}>
+                  <span style={{ fontSize:12.5,flex:1 }}>{src}</span>
+                  <div style={{ width:80,height:5,borderRadius:99,background:"rgba(255,255,255,0.07)",overflow:"hidden" }}>
+                    <div style={{ height:"100%",background:"#C8932B",width:`${totalLeads?count/totalLeads*100:0}%`,borderRadius:99 }} />
+                  </div>
+                  <span style={{ fontSize:11,color:"rgba(255,255,255,0.45)",minWidth:20 }}>{count}</span>
+                </div>
+              ))}
+            </div>
+            <div style={S.card}>
+              <div style={{ fontWeight:700,fontSize:13,marginBottom:12 }}>📅 المتابعات اليوم ({todayFollowUps.length})</div>
+              {todayFollowUps.length===0 ? <div style={{ fontSize:12,color:"rgba(255,255,255,0.3)",textAlign:"center",padding:"12px 0" }}>لا متابعات اليوم</div>
+              : todayFollowUps.slice(0,5).map(f=>{
+                const st=allStudents.find(s=>s.email===f.studentEmail);
+                return (
+                  <div key={f.id} style={{ display:"flex",gap:8,padding:"6px 0",borderBottom:"1px solid rgba(255,255,255,0.05)" }}>
+                    <span style={{ fontSize:14 }}>{f.type==="واتساب"?"📱":f.type==="مكالمة"?"📞":"📧"}</span>
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontSize:12.5,fontWeight:600 }}>{st?.name||f.studentEmail}</div>
+                      <div style={{ fontSize:11,color:"rgba(255,255,255,0.4)" }}>{f.note||f.type}</div>
+                    </div>
+                    <button onClick={()=>saveFollowUps(followUps.map(x=>x.id===f.id?{...x,done:true}:x))} style={{ background:"none",border:"none",cursor:"pointer",fontSize:16 }}>✅</button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── الحملات ── */}
+      {tab==="campaigns" && (
+        <div>
+          <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12 }}>
+            <span style={{ fontWeight:700,fontSize:13 }}>📣 الحملات الإعلانية ({campaigns.length})</span>
+            <button style={S.btn} onClick={()=>setModal(true)}><i className="ti ti-plus" style={{ fontSize:13 }} /> حملة جديدة</button>
+          </div>
+          {campaigns.length===0 ? (
+            <div style={{ ...S.card,textAlign:"center",padding:"32px 0",color:"rgba(255,255,255,0.3)" }}>
+              <div style={{ fontSize:32,marginBottom:8 }}>📣</div>
+              <div>لا توجد حملات بعد — أضف حملتك الأولى</div>
+            </div>
+          ) : campaigns.map(c=>(
+            <div key={c.id} style={{ ...S.card,marginBottom:8 }}>
+              <div style={{ display:"flex",alignItems:"flex-start",gap:12 }}>
+                <span style={{ fontSize:24,flexShrink:0 }}>{CH_ICON[c.channel]||"📢"}</span>
+                <div style={{ flex:1 }}>
+                  <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:4 }}>
+                    <span style={{ fontWeight:700,fontSize:13 }}>{c.title}</span>
+                    <select style={{ ...S.input,width:"auto",padding:"2px 8px",fontSize:11,cursor:"pointer" }} value={c.status}
+                      onChange={e=>saveCampaigns(campaigns.map(x=>x.id===c.id?{...x,status:e.target.value}:x))}>
+                      {Object.entries(ST_STYLE).map(([v,s])=><option key={v} value={v}>{s.l}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ display:"flex",gap:12,flexWrap:"wrap" }}>
+                    <span style={{ fontSize:11,color:"rgba(255,255,255,0.4)" }}>📱 {c.channel}</span>
+                    <span style={{ fontSize:11,color:"rgba(255,255,255,0.4)" }}>🎯 {c.target==="all"?"الكل":c.target==="new"?"جدد":"مسجلون"}</span>
+                    {c.budget && <span style={{ fontSize:11,color:"#C8932B" }}>💰 {c.budget} ج</span>}
+                    {c.startDate && <span style={{ fontSize:11,color:"rgba(255,255,255,0.4)" }}>📅 {new Date(c.startDate).toLocaleDateString("ar-EG")}</span>}
+                  </div>
+                  {c.message && <div style={{ fontSize:11.5,color:"rgba(255,255,255,0.55)",marginTop:6,background:"rgba(255,255,255,0.03)",padding:"6px 10px",borderRadius:6 }}>{c.message.slice(0,100)}{c.message.length>100?"...":""}</div>}
+                </div>
+                <button style={{ ...S.btnRed,padding:"5px 9px",fontSize:11,flexShrink:0 }} onClick={()=>saveCampaigns(campaigns.filter(x=>x.id!==c.id))}>🗑️</button>
+              </div>
+            </div>
+          ))}
+
+          {modal && (
+            <div style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:99 }} onClick={()=>setModal(false)}>
+              <div style={{ background:"#162035",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,padding:22,width:500,maxWidth:"92%",maxHeight:"90vh",overflowY:"auto" }} onClick={e=>e.stopPropagation()}>
+                <div style={{ fontWeight:800,fontSize:15,marginBottom:14 }}>حملة إعلانية جديدة</div>
+                <div style={{ marginBottom:10 }}>
+                  <label style={S.label}>عنوان الحملة *</label>
+                  <input style={S.input} value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} placeholder="مثال: حملة منح تركيا 2026" />
+                </div>
+                <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10 }}>
+                  <div><label style={S.label}>القناة</label>
+                    <select style={{ ...S.input,cursor:"pointer" }} value={form.channel} onChange={e=>setForm(f=>({...f,channel:e.target.value}))}>
+                      {CHANNELS.map(c=><option key={c}>{c}</option>)}
+                    </select></div>
+                  <div><label style={S.label}>الجمهور المستهدف</label>
+                    <select style={{ ...S.input,cursor:"pointer" }} value={form.target} onChange={e=>setForm(f=>({...f,target:e.target.value}))}>
+                      <option value="all">الكل ({totalLeads})</option>
+                      <option value="new">محتملون جدد ({newLeads})</option>
+                      <option value="potential">محتملون ({potential})</option>
+                      <option value="registered">مسجلون ({registered})</option>
+                    </select></div>
+                </div>
+                <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:10 }}>
+                  <div><label style={S.label}>الميزانية (ج)</label>
+                    <input type="number" style={S.input} value={form.budget} onChange={e=>setForm(f=>({...f,budget:e.target.value}))} placeholder="0" /></div>
+                  <div><label style={S.label}>تاريخ البدء</label>
+                    <input type="date" style={S.input} value={form.startDate} onChange={e=>setForm(f=>({...f,startDate:e.target.value}))} /></div>
+                  <div><label style={S.label}>تاريخ الانتهاء</label>
+                    <input type="date" style={S.input} value={form.endDate} onChange={e=>setForm(f=>({...f,endDate:e.target.value}))} /></div>
+                </div>
+                <div style={{ marginBottom:14 }}>
+                  <label style={S.label}>رسالة/وصف الحملة</label>
+                  <textarea style={{ ...S.textarea,minHeight:80 }} value={form.message} onChange={e=>setForm(f=>({...f,message:e.target.value}))} placeholder="نص الرسالة أو وصف الحملة..." />
+                </div>
+                <div style={{ display:"flex",gap:8,justifyContent:"flex-end" }}>
+                  <button style={S.btnOut} onClick={()=>setModal(false)}>إلغاء</button>
+                  <button style={S.btn} onClick={()=>{ if(!form.title)return; saveCampaigns([...campaigns,{...form,id:Date.now().toString(),date:new Date().toISOString()}]); setModal(false); setForm({title:"",channel:"واتساب",target:"all",message:"",status:"draft",budget:"",startDate:"",endDate:""}); }}>💾 حفظ</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+
+      {/* ── أدوات ── */}
+      {tab==="tools" && (
+        <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:14 }}>
+          <div style={S.card}>
+            <div style={{ fontWeight:700,fontSize:13,marginBottom:14 }}>📤 تصدير البيانات</div>
+            <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
+              {[
+                { label:"كل العملاء CSV", icon:"📥", fn:()=>{ const rows=allStudents.map(s=>({ "الاسم":s.name,"الإيميل":s.email,"الهاتف":s.phone||"","الخدمة":s.serviceType||"","الحالة":s.status })); const h=Object.keys(rows[0]||{}); const csv=[h.join(","),...rows.map(r=>h.map(k=>`"${r[k]}"`).join(","))].join("\n"); const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob(["\uFEFF"+csv],{type:"text/csv"})); a.download="كل_العملاء.csv"; a.click(); } },
+                { label:"المسجلون فقط CSV", icon:"📥", fn:()=>{ const rows=allStudents.filter(s=>s.status==="registered").map(s=>({ "الاسم":s.name,"الإيميل":s.email,"الهاتف":s.phone||"","المنحة":s.scholarship||"" })); const h=Object.keys(rows[0]||{}); const csv=[h.join(","),...rows.map(r=>h.map(k=>`"${r[k]}"`).join(","))].join("\n"); const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob(["\uFEFF"+csv],{type:"text/csv"})); a.download="المسجلون.csv"; a.click(); } },
+              ].map(t=>(
+                <button key={t.label} style={{ ...S.btnOut,justifyContent:"flex-start",padding:"10px 14px" }} onClick={t.fn}>{t.icon} {t.label}</button>
+              ))}
+            </div>
+          </div>
+          <div style={S.card}>
+            <div style={{ fontWeight:700,fontSize:13,marginBottom:14 }}>📋 نسخ البيانات</div>
+            <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
+              {[
+                { label:`نسخ أرقام واتساب (${allStudents.filter(s=>s.phone).length})`, icon:"📱", fn:()=>{ navigator.clipboard.writeText(allStudents.filter(s=>s.phone).map(s=>s.phone).join("\n")); alert("✅ تم النسخ"); } },
+                { label:"نسخ قائمة الإيميلات", icon:"📧", fn:()=>{ navigator.clipboard.writeText(allStudents.filter(s=>s.email&&!s.email.includes("@masar")).map(s=>s.email).join(", ")); alert("✅ تم النسخ"); } },
+                { label:"نسخ المحتملين الجدد", icon:"🆕", fn:()=>{ const txt=allStudents.filter(s=>s.status==="new").map(s=>`${s.name} - ${s.phone||s.email}`).join("\n"); navigator.clipboard.writeText(txt); alert("✅ تم النسخ"); } },
+              ].map(t=>(
+                <button key={t.label} style={{ ...S.btnOut,justifyContent:"flex-start",padding:"10px 14px" }} onClick={t.fn}>{t.icon} {t.label}</button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Email Tab ────────────────────────────────────────────────────────────────
+function EmailTab({ allStudents, staffInfo, S }) {
+  const [tab, setTab]       = useState("compose");
+  const [signature, setSignature] = useState(()=>{ try{return localStorage.getItem(`masar_sig_${staffInfo?.email}`)||"";}catch{return "";} });
+  const [editSig, setEditSig] = useState(false);
+  const [tempSig, setTempSig] = useState(signature);
+
+  const [compose, setCompose] = useState({ to:"", subject:"", body:"", template:"" });
+  const [bulk, setBulk]       = useState({ target:"all", subject:"", body:"" });
+  const [sentEmails, setSentEmails] = useState(()=>{ try{return JSON.parse(localStorage.getItem("masar_sent_emails")||"[]");}catch{return [];} });
+  const [templates, setTemplates] = useState(()=>{ try{return JSON.parse(localStorage.getItem("masar_email_templates")||"[]");}catch{return DEFAULT_EMAIL_TEMPLATES;} });
+  const [tplModal, setTplModal] = useState(false);
+  const [tplForm, setTplForm] = useState({ name:"", subject:"", body:"" });
+
+  const saveSig = () => { localStorage.setItem(`masar_sig_${staffInfo?.email}`, tempSig); setSignature(tempSig); setEditSig(false); };
+  const saveTemplates = (l)=>{ setTemplates(l); localStorage.setItem("masar_email_templates",JSON.stringify(l)); };
+  const logSent = (email)=>{ const list=[{...email,sentBy:staffInfo?.name,date:new Date().toISOString(),id:Date.now().toString()},...sentEmails].slice(0,50); setSentEmails(list); localStorage.setItem("masar_sent_emails",JSON.stringify(list)); };
+
+  const DEFAULT_EMAIL_TEMPLATES = [
+    { id:"t1", name:"ترحيب",        subject:"أهلاً بك في مسار للاستشارات",  body:"عزيزي {اسم الطالب}،\n\nأهلاً وسهلاً بك في مسار للاستشارات التعليمية! 🌟\n\nيسعدنا انضمامك إلينا. فريقنا جاهز لمساعدتك في رحلتك نحو المنحة المثالية.\n\nللتواصل المباشر، يمكنك التواصل معنا على واتساب أو من خلال موقعنا.\n\nمع أطيب التحيات،" },
+    { id:"t2", name:"تأكيد الموعد", subject:"تأكيد موعد استشارتك مع مسار", body:"عزيزي {اسم الطالب}،\n\nنؤكد لك موعد استشارتك:\n\n📅 التاريخ: {التاريخ}\n⏰ الوقت: {الوقت}\n👨‍💼 الاستشاري: {الاستشاري}\n\nنتمنى لك جلسة مثمرة! 🌟\n\nمع أطيب التحيات،" },
+    { id:"t3", name:"اكتمال الملف", subject:"🎉 ملفك جاهز للتحميل",          body:"عزيزي {اسم الطالب}،\n\nيسعدنا إخبارك أن ملفك قد اكتمل وأصبح جاهزاً للتحميل! 🎉\n\nيمكنك الدخول لحسابك الآن وتحميل الملفات بالصيغة التي تناسبك.\n\nنتمنى لك التوفيق في التقديم على منحتك! 🌟\n\nمع أطيب التحيات،" },
+    { id:"t4", name:"طلب المستندات",subject:"المستندات المطلوبة لملفك",    body:"عزيزي {اسم الطالب}،\n\nلإكمال ملفك نحتاج المستندات التالية:\n\n✅ صورة جواز السفر (ساري المفعول)\n✅ كشف الدرجات الرسمي\n✅ صورة شهادة التخرج\n✅ صورة شخصية بخلفية بيضاء\n\nيرجى رفعها في أقرب وقت من خلال حسابك.\n\nمع أطيب التحيات،" },
+  ];
+
+  // فتح Gmail بالرسالة جاهزة
+  const openGmail = (to, subject, body) => {
+    const fullBody = body + (signature ? "\n\n--\n" + signature : "");
+    const url = `https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(fullBody)}`;
+    window.open(url, "_blank");
+    logSent({ to, subject, body });
+  };
+
+  // فتح Outlook
+  const openOutlook = (to, subject, body) => {
+    const fullBody = body + (signature ? "\n\n--\n" + signature : "");
+    const url = `https://outlook.live.com/owa/?to=${encodeURIComponent(to)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(fullBody)}`;
+    window.open(url, "_blank");
+    logSent({ to, subject, body });
+  };
+
+  // mailto fallback
+  const openMailto = (to, subject, body) => {
+    const fullBody = body + (signature ? "\n\n--\n" + signature : "");
+    window.open(`mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(fullBody)}`);
+    logSent({ to, subject, body });
+  };
+
+  // Bulk email
+  const getTargetStudents = () => {
+    if (bulk.target === "all") return allStudents.filter(s=>s.email&&!s.email.includes("@masar"));
+    return allStudents.filter(s=>s.email&&!s.email.includes("@masar")&&s.status===bulk.target);
+  };
+
+  const sendBulk = (method) => {
+    const targets = getTargetStudents();
+    if (!targets.length) { alert("لا يوجد عملاء لهذا الفلتر"); return; }
+    if (!bulk.subject || !bulk.body) { alert("يرجى كتابة الموضوع والرسالة"); return; }
+    const emails = targets.map(s=>s.email).join(",");
+    const fullBody = bulk.body + (signature ? "\n\n--\n" + signature : "");
+    if (method === "gmail")   window.open(`https://mail.google.com/mail/?view=cm&bcc=${encodeURIComponent(emails)}&su=${encodeURIComponent(bulk.subject)}&body=${encodeURIComponent(fullBody)}`, "_blank");
+    else window.open(`mailto:${emails}?subject=${encodeURIComponent(bulk.subject)}&body=${encodeURIComponent(fullBody)}`);
+    logSent({ to:`${targets.length} عميل`, subject:bulk.subject, body:bulk.body });
+    alert(`✅ تم فتح ${method === "gmail" ? "Gmail" : "برنامج الإيميل"} بـ ${targets.length} عميل`);
+  };
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14 }}>
+        <div>
+          <div style={{ fontWeight:800,fontSize:15 }}>📧 مركز الإيميلات</div>
+          <div style={{ fontSize:12,color:"rgba(255,255,255,0.4)",marginTop:2 }}>أرسل إيميلات فردية أو جماعية للطلاب</div>
+        </div>
+        <div style={{ display:"flex",gap:8,alignItems:"center" }}>
+          <div style={{ fontSize:11,padding:"5px 12px",borderRadius:8,background:"rgba(234,67,53,0.1)",border:"1px solid rgba(234,67,53,0.2)",color:"#EA4335",fontWeight:700 }}>
+            📧 يعمل عبر Gmail / Outlook
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display:"flex",gap:6,marginBottom:16 }}>
+        {[["compose","✍️ إنشاء إيميل"],["bulk","📤 إرسال جماعي"],["templates","📋 القوالب"],["signature","✒️ التوقيع"],["sent","📬 المرسلة"]].map(([v,l])=>(
+          <button key={v} onClick={()=>setTab(v)} style={{ padding:"6px 14px",borderRadius:8,border:tab===v?"none":"1px solid rgba(255,255,255,0.12)",background:tab===v?"#C8932B":"none",color:tab===v?"#13213B":"rgba(255,255,255,0.6)",cursor:"pointer",fontFamily:"inherit",fontSize:12,fontWeight:700 }}>{l}</button>
+        ))}
+      </div>
+
+      {/* ── إنشاء إيميل ── */}
+      {tab==="compose" && (
+        <div style={S.card}>
+          <div style={{ fontWeight:700,fontSize:13,marginBottom:14 }}>✍️ إنشاء إيميل جديد</div>
+          <div style={{ marginBottom:10 }}>
+            <label style={S.label}>المستلم</label>
+            <div style={{ display:"flex",gap:8 }}>
+              <input style={{ ...S.input,flex:1 }} value={compose.to} onChange={e=>setCompose(c=>({...c,to:e.target.value}))} placeholder="email@example.com" />
+              <select style={{ ...S.input,width:200,cursor:"pointer" }} onChange={e=>{ if(e.target.value) setCompose(c=>({...c,to:e.target.value})); }}>
+                <option value="">اختر من الطلاب...</option>
+                {allStudents.filter(s=>s.email&&!s.email.includes("@masar")).map(s=><option key={s.email} value={s.email}>{s.name} — {s.email}</option>)}
+              </select>
+            </div>
+          </div>
+          <div style={{ marginBottom:10 }}>
+            <label style={S.label}>القالب (اختياري)</label>
+            <select style={{ ...S.input,cursor:"pointer" }} onChange={e=>{
+              const t = [...templates, ...DEFAULT_EMAIL_TEMPLATES].find(x=>x.id===e.target.value);
+              if (t) setCompose(c=>({...c, subject:t.subject, body:t.body}));
+            }}>
+              <option value="">— اختر قالباً —</option>
+              {[...DEFAULT_EMAIL_TEMPLATES,...templates].map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          </div>
+          <div style={{ marginBottom:10 }}>
+            <label style={S.label}>الموضوع</label>
+            <input style={S.input} value={compose.subject} onChange={e=>setCompose(c=>({...c,subject:e.target.value}))} placeholder="موضوع الإيميل" />
+          </div>
+          <div style={{ marginBottom:14 }}>
+            <label style={S.label}>نص الرسالة</label>
+            <textarea style={{ ...S.textarea,minHeight:160 }} value={compose.body} onChange={e=>setCompose(c=>({...c,body:e.target.value}))} placeholder="اكتب رسالتك هنا..." />
+            {signature && <div style={{ fontSize:11,color:"rgba(255,255,255,0.35)",marginTop:4 }}>✒️ سيُضاف توقيعك تلقائياً</div>}
+          </div>
+          <div style={{ display:"flex",gap:8,flexWrap:"wrap" }}>
+            <button style={{ ...S.btn,background:"#EA4335",color:"#fff" }} onClick={()=>{ if(!compose.to||!compose.subject){alert("يرجى تحديد المستلم والموضوع");return;} openGmail(compose.to,compose.subject,compose.body); }}>
+              📧 فتح في Gmail
+            </button>
+            <button style={{ ...S.btnOut }} onClick={()=>{ if(!compose.to||!compose.subject){alert("يرجى تحديد المستلم والموضوع");return;} openOutlook(compose.to,compose.subject,compose.body); }}>
+              📧 فتح في Outlook
+            </button>
+            <button style={{ ...S.btnOut }} onClick={()=>{ if(!compose.to||!compose.subject){alert("يرجى تحديد المستلم والموضوع");return;} openMailto(compose.to,compose.subject,compose.body); }}>
+              📧 برنامج الإيميل
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── إرسال جماعي ── */}
+      {tab==="bulk" && (
+        <div>
+          <div style={{ ...S.card,marginBottom:12,padding:14,background:"rgba(200,147,43,0.06)",border:"1px solid rgba(200,147,43,0.2)" }}>
+            <div style={{ fontSize:12.5,lineHeight:1.8 }}>
+              <strong style={{ color:"#C8932B" }}>📌 كيف يعمل الإرسال الجماعي؟</strong><br/>
+              بيفتح Gmail/Outlook مع كل الإيميلات في حقل BCC — الطلاب مش بيشوفوا بعض. لإرسال حقيقي من الـ CRM محتاج SMTP API (SendGrid أو Mailgun).
+            </div>
+          </div>
+          <div style={S.card}>
+            <div style={{ fontWeight:700,fontSize:13,marginBottom:14 }}>📤 إرسال جماعي</div>
+            <div style={{ marginBottom:10 }}>
+              <label style={S.label}>الجمهور المستهدف</label>
+              <select style={{ ...S.input,cursor:"pointer",maxWidth:300 }} value={bulk.target} onChange={e=>setBulk(b=>({...b,target:e.target.value}))}>
+                <option value="all">كل الطلاب ({allStudents.filter(s=>s.email&&!s.email.includes("@masar")).length} إيميل)</option>
+                <option value="new">محتملون جدد ({allStudents.filter(s=>s.status==="new").length})</option>
+                <option value="potential">محتملون ({allStudents.filter(s=>s.status==="potential").length})</option>
+                <option value="registered">مسجلون ({allStudents.filter(s=>s.status==="registered").length})</option>
+              </select>
+            </div>
+            <div style={{ marginBottom:10 }}>
+              <label style={S.label}>الموضوع</label>
+              <input style={S.input} value={bulk.subject} onChange={e=>setBulk(b=>({...b,subject:e.target.value}))} placeholder="موضوع الإيميل الجماعي" />
+            </div>
+            <div style={{ marginBottom:14 }}>
+              <label style={S.label}>نص الرسالة</label>
+              <textarea style={{ ...S.textarea,minHeight:140 }} value={bulk.body} onChange={e=>setBulk(b=>({...b,body:e.target.value}))} placeholder="اكتب رسالتك هنا..." />
+            </div>
+            <div style={{ display:"flex",gap:8 }}>
+              <button style={{ ...S.btn,background:"#EA4335",color:"#fff" }} onClick={()=>sendBulk("gmail")}>
+                📧 إرسال عبر Gmail ({getTargetStudents().length})
+              </button>
+              <button style={S.btnOut} onClick={()=>sendBulk("mailto")}>
+                📧 برنامج الإيميل
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── القوالب ── */}
+      {tab==="templates" && (
+        <div>
+          <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12 }}>
+            <span style={{ fontWeight:700,fontSize:13 }}>📋 قوالب الإيميل</span>
+            <button style={S.btn} onClick={()=>setTplModal(true)}><i className="ti ti-plus" style={{ fontSize:13 }} /> قالب جديد</button>
+          </div>
+          {[...DEFAULT_EMAIL_TEMPLATES,...templates].map(t=>(
+            <div key={t.id} style={{ ...S.card,marginBottom:8 }}>
+              <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8 }}>
+                <div style={{ fontWeight:700,fontSize:13 }}>{t.name}</div>
+                <div style={{ display:"flex",gap:6 }}>
+                  <button style={{ ...S.btn,padding:"4px 10px",fontSize:11 }} onClick={()=>{ setCompose(c=>({...c,subject:t.subject,body:t.body})); setTab("compose"); }}>استخدام</button>
+                  {!t.id.startsWith("t") && <button style={{ ...S.btnRed,padding:"4px 9px",fontSize:11 }} onClick={()=>saveTemplates(templates.filter(x=>x.id!==t.id))}>🗑️</button>}
+                </div>
+              </div>
+              <div style={{ fontSize:12,color:"#C8932B",marginBottom:4 }}>📧 {t.subject}</div>
+              <div style={{ fontSize:11.5,color:"rgba(255,255,255,0.5)",lineHeight:1.6,background:"rgba(255,255,255,0.03)",padding:"8px 10px",borderRadius:6,whiteSpace:"pre-line" }}>{t.body.slice(0,120)}...</div>
+            </div>
+          ))}
+          {tplModal && (
+            <div style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:99 }} onClick={()=>setTplModal(false)}>
+              <div style={{ background:"#162035",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,padding:22,width:480,maxWidth:"92%" }} onClick={e=>e.stopPropagation()}>
+                <div style={{ fontWeight:800,fontSize:15,marginBottom:14 }}>قالب جديد</div>
+                <div style={{ marginBottom:10 }}><label style={S.label}>اسم القالب</label><input style={S.input} value={tplForm.name} onChange={e=>setTplForm(f=>({...f,name:e.target.value}))} /></div>
+                <div style={{ marginBottom:10 }}><label style={S.label}>الموضوع</label><input style={S.input} value={tplForm.subject} onChange={e=>setTplForm(f=>({...f,subject:e.target.value}))} /></div>
+                <div style={{ marginBottom:14 }}><label style={S.label}>نص الرسالة</label><textarea style={{ ...S.textarea,minHeight:120 }} value={tplForm.body} onChange={e=>setTplForm(f=>({...f,body:e.target.value}))} /></div>
+                <div style={{ display:"flex",gap:8,justifyContent:"flex-end" }}>
+                  <button style={S.btnOut} onClick={()=>setTplModal(false)}>إلغاء</button>
+                  <button style={S.btn} onClick={()=>{ if(!tplForm.name)return; saveTemplates([...templates,{...tplForm,id:Date.now().toString()}]); setTplModal(false); setTplForm({name:"",subject:"",body:""}); }}>💾 حفظ</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── التوقيع ── */}
+      {tab==="signature" && (
+        <div style={S.card}>
+          <div style={{ fontWeight:700,fontSize:13,marginBottom:14 }}>✒️ توقيع البريد الإلكتروني</div>
+          <div style={{ fontSize:12,color:"rgba(255,255,255,0.45)",marginBottom:14,lineHeight:1.7 }}>
+            التوقيع يُضاف تلقائياً في نهاية كل إيميل ترسله. يمكنك استخدام النص العادي.
+          </div>
+          {!editSig ? (
+            <div>
+              {signature ? (
+                <div style={{ padding:"14px",borderRadius:8,background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.08)",marginBottom:12,whiteSpace:"pre-line",fontSize:13,lineHeight:1.7 }}>{signature}</div>
+              ) : (
+                <div style={{ padding:"14px",borderRadius:8,background:"rgba(255,255,255,0.03)",fontSize:12,color:"rgba(255,255,255,0.3)",marginBottom:12,textAlign:"center" }}>لا يوجد توقيع بعد</div>
+              )}
+              <button style={S.btn} onClick={()=>{ setTempSig(signature); setEditSig(true); }}>✏️ {signature?"تعديل التوقيع":"إضافة توقيع"}</button>
+            </div>
+          ) : (
+            <div>
+              <div style={{ marginBottom:8 }}>
+                <label style={S.label}>مثال على التوقيع:</label>
+                <div style={{ fontSize:11,color:"rgba(255,255,255,0.35)",marginBottom:8,whiteSpace:"pre-line" }}>
+                  {`${staffInfo?.name || "اسمك"}\nاستشاري تعليمي — مسار للاستشارات\nواتساب: 01xxxxxxxxx\nالموقع: www.masar.com`}
+                </div>
+              </div>
+              <textarea style={{ ...S.textarea,minHeight:120,marginBottom:12 }} value={tempSig} onChange={e=>setTempSig(e.target.value)} placeholder={`${staffInfo?.name || "اسمك"}\nاستشاري تعليمي — مسار للاستشارات\nواتساب: 01xxxxxxxxx`} />
+              <div style={{ display:"flex",gap:8 }}>
+                <button style={S.btn} onClick={saveSig}>💾 حفظ التوقيع</button>
+                <button style={S.btnOut} onClick={()=>setEditSig(false)}>إلغاء</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── المرسلة ── */}
+      {tab==="sent" && (
+        <div style={S.card}>
+          <div style={{ fontWeight:700,fontSize:13,marginBottom:14 }}>📬 سجل الإيميلات المرسلة</div>
+          {sentEmails.length===0 ? (
+            <div style={{ textAlign:"center",color:"rgba(255,255,255,0.3)",padding:"24px 0",fontSize:12 }}>
+              <div style={{ fontSize:28,marginBottom:6 }}>📬</div>لا توجد إيميلات مرسلة بعد
+            </div>
+          ) : sentEmails.map(e=>(
+            <div key={e.id} style={{ padding:"10px 0",borderBottom:"1px solid rgba(255,255,255,0.05)" }}>
+              <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:3 }}>
+                <span style={{ fontSize:12.5,fontWeight:700 }}>{e.subject}</span>
+                <span style={{ fontSize:10.5,color:"rgba(255,255,255,0.3)" }}>{new Date(e.date).toLocaleDateString("ar-EG")} {new Date(e.date).toLocaleTimeString("ar-EG",{hour:"2-digit",minute:"2-digit"})}</span>
+              </div>
+              <div style={{ fontSize:11,color:"rgba(255,255,255,0.4)" }}>إلى: {e.to} {e.sentBy&&`· بواسطة: ${e.sentBy}`}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Follow Up Tab ────────────────────────────────────────────────────────────
+function FollowUpTab({ allStudents, staffInfo, S }) {
+  const staffList = getStaffList();
+  const myRole    = staffList.find(s=>s.email===staffInfo?.email)?.role || "consultant";
+  const isAdmin   = myRole === "admin";
+
+  const [followUps, setFollowUps] = useState(()=>{ try{return JSON.parse(localStorage.getItem("masar_followups")||"[]");}catch{return [];} });
+  const [modal, setModal]         = useState(false);
+  const [form, setForm]           = useState({ studentEmail:"", type:"مكالمة", date:"", note:"", assignedTo:"", done:false });
+  const [filter, setFilter]       = useState("pending"); // pending | overdue | done | all
+  const [search, setSearch]       = useState("");
+
+  const save = (list) => { setFollowUps(list); localStorage.setItem("masar_followups", JSON.stringify(list)); };
+  const now  = new Date();
+
+  const addFollowUp = () => {
+    if (!form.studentEmail || !form.date) { alert("يرجى اختيار العميل والتاريخ"); return; }
+    const newFU = { ...form, id:Date.now().toString(), createdAt:new Date().toISOString(), createdBy:staffInfo?.name||"موظف" };
+    save([...followUps, newFU]);
+    setModal(false);
+    setForm({ studentEmail:"", type:"مكالمة", date:"", note:"", assignedTo:"", done:false });
+  };
+
+  // فلترة حسب الدور
+  const myFollowUps = isAdmin ? followUps :
+    followUps.filter(f => f.assignedTo===staffInfo?.email || f.createdBy===staffInfo?.name || !f.assignedTo);
+
+  const filtered = myFollowUps.filter(f => {
+    const isOverdue = !f.done && f.date && new Date(f.date) < now;
+    const isPending = !f.done && !isOverdue;
+    const matchSearch = !search || allStudents.find(s=>s.email===f.studentEmail)?.name?.includes(search);
+    if (!matchSearch) return false;
+    if (filter === "overdue") return isOverdue;
+    if (filter === "pending") return isPending;
+    if (filter === "done")    return f.done;
+    return true;
+  }).sort((a,b) => new Date(a.date) - new Date(b.date));
+
+  const overdueCount  = myFollowUps.filter(f=>!f.done&&f.date&&new Date(f.date)<now).length;
+  const pendingCount  = myFollowUps.filter(f=>!f.done&&(!f.date||new Date(f.date)>=now)).length;
+  const todayCount    = myFollowUps.filter(f=>!f.done&&f.date&&f.date.split("T")[0]===now.toISOString().split("T")[0]).length;
+
+  const TYPE_ICON = { "مكالمة":"📞", "واتساب":"📱", "إيميل":"📧", "اجتماع":"🤝", "متابعة":"🔄" };
+
+  // إحصائيات المدير — من الأكثر تأخيراً
+  const staffOverdue = isAdmin ? staffList.map(s => ({
+    name: s.name,
+    email: s.email,
+    role: s.role,
+    overdue: followUps.filter(f=>!f.done&&f.date&&new Date(f.date)<now&&(f.assignedTo===s.email||f.createdBy===s.name)).length,
+  })).filter(s=>s.overdue>0).sort((a,b)=>b.overdue-a.overdue) : [];
+
+  return (
+    <div>
+      {/* Header Stats */}
+      <div style={{ display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:16 }}>
+        {[
+          { label:"كل المتابعات",  num:myFollowUps.length,                                     color:"#2F7B6E" },
+          { label:"اليوم",         num:todayCount,                                               color:"#3B9DD4" },
+          { label:"قادمة",         num:pendingCount,                                             color:"#C8932B" },
+          { label:"🔴 متأخرة",    num:overdueCount, bg:overdueCount>0?"rgba(232,69,69,0.1)":undefined, color:"#e84545" },
+        ].map((s,i)=>(
+          <div key={i} style={{ ...S.card,marginBottom:0,background:s.bg||"#162035",cursor:"pointer" }}
+            onClick={()=>setFilter(i===3?"overdue":i===2?"pending":i===1?"pending":"all")}>
+            <div style={{ fontSize:24,fontWeight:800,color:s.color,lineHeight:1 }}>{s.num}</div>
+            <div style={{ fontSize:11,color:"rgba(255,255,255,0.45)",marginTop:3 }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* تنبيه للمدير: مين متأخر */}
+      {isAdmin && staffOverdue.length > 0 && (
+        <div style={{ ...S.card,marginBottom:14,border:"1px solid rgba(232,69,69,0.25)",background:"rgba(232,69,69,0.05)" }}>
+          <div style={{ fontWeight:700,fontSize:13,color:"#e84545",marginBottom:10 }}>🔴 موظفون متأخرون في المتابعة</div>
+          <div style={{ display:"flex",gap:10,flexWrap:"wrap" }}>
+            {staffOverdue.map(s=>(
+              <div key={s.email} style={{ display:"flex",alignItems:"center",gap:8,padding:"6px 12px",borderRadius:8,background:"rgba(232,69,69,0.08)",border:"1px solid rgba(232,69,69,0.2)" }}>
+                <span style={{ fontSize:14 }}>👤</span>
+                <span style={{ fontSize:12.5,fontWeight:700 }}>{s.name}</span>
+                <span style={{ fontSize:11,padding:"1px 7px",borderRadius:99,background:"rgba(232,69,69,0.2)",color:"#e84545",fontWeight:700 }}>{s.overdue} متأخرة</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Filters + Add */}
+      <div style={{ display:"flex",gap:8,marginBottom:12,alignItems:"center",flexWrap:"wrap" }}>
+        <div style={{ display:"flex",gap:6 }}>
+          {[["all","الكل"],["pending","🟡 قادمة"],["overdue","🔴 متأخرة"],["done","✅ منجزة"]].map(([v,l])=>(
+            <button key={v} onClick={()=>setFilter(v)} style={{ padding:"6px 12px",borderRadius:7,border:filter===v?"none":"1px solid rgba(255,255,255,0.1)",background:filter===v?"#C8932B":"none",color:filter===v?"#13213B":"rgba(255,255,255,0.6)",cursor:"pointer",fontFamily:"inherit",fontSize:12,fontWeight:700 }}>{l}</button>
+          ))}
+        </div>
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="بحث بالاسم..." style={{ ...S.input,width:180,padding:"6px 10px",fontSize:12 }} />
+        <button style={{ ...S.btn,marginRight:"auto" }} onClick={()=>setModal(true)}>
+          <i className="ti ti-plus" style={{ fontSize:13 }} /> متابعة جديدة
+        </button>
+      </div>
+
+      {/* القائمة */}
+      {filtered.length === 0 ? (
+        <div style={{ ...S.card,textAlign:"center",padding:"32px 0",color:"rgba(255,255,255,0.3)" }}>
+          <div style={{ fontSize:32,marginBottom:8 }}>🔄</div>
+          <div>{filter==="overdue"?"لا توجد متابعات متأخرة ✅":"لا توجد متابعات"}</div>
+        </div>
+      ) : filtered.map(f => {
+        const student    = allStudents.find(s=>s.email===f.studentEmail);
+        const isOverdue  = !f.done && f.date && new Date(f.date) < now;
+        const isToday    = !f.done && f.date && f.date.split("T")[0] === now.toISOString().split("T")[0];
+        const hoursLate  = isOverdue ? Math.round((now-new Date(f.date))/3600000) : 0;
+        const assignee   = staffList.find(s=>s.email===f.assignedTo);
+        return (
+          <div key={f.id} style={{ ...S.card,marginBottom:8,
+            borderColor:isOverdue?"rgba(232,69,69,0.35)":isToday?"rgba(200,147,43,0.3)":undefined,
+            background:isOverdue?"rgba(232,69,69,0.05)":isToday?"rgba(200,147,43,0.04)":undefined,
+            opacity:f.done?0.5:1 }}>
+            <div style={{ display:"flex",alignItems:"flex-start",gap:12 }}>
+              <div style={{ fontSize:24,flexShrink:0 }}>{TYPE_ICON[f.type]||"🔄"}</div>
+              <div style={{ flex:1 }}>
+                <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:4,flexWrap:"wrap" }}>
+                  <span style={{ fontWeight:700,fontSize:13 }}>{student?.name||f.studentEmail}</span>
+                  <span style={{ fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:700,
+                    background:isOverdue?"rgba(232,69,69,0.15)":isToday?"rgba(200,147,43,0.15)":"rgba(255,255,255,0.07)",
+                    color:isOverdue?"#e84545":isToday?"#C8932B":"rgba(255,255,255,0.5)" }}>
+                    {isOverdue?`متأخر ${hoursLate} ساعة`:isToday?"اليوم":f.type}
+                  </span>
+                  {f.type && !isOverdue && !isToday && <span style={{ fontSize:11,color:"rgba(255,255,255,0.4)" }}>{f.type}</span>}
+                  {assignee && <span style={{ fontSize:10.5,color:"rgba(255,255,255,0.35)" }}>👤 {assignee.name}</span>}
+                  {f.done && <span style={{ fontSize:11,color:"#2F7B6E" }}>✅ منجزة</span>}
+                </div>
+                {f.note && <div style={{ fontSize:12,color:"rgba(255,255,255,0.55)",marginBottom:4 }}>{f.note}</div>}
+                <div style={{ fontSize:11,color:"rgba(255,255,255,0.35)" }}>
+                  📅 {f.date ? `${new Date(f.date).toLocaleDateString("ar-EG")} ${new Date(f.date).toLocaleTimeString("ar-EG",{hour:"2-digit",minute:"2-digit"})}` : "بدون موعد"}
+                  {student?.phone && <span style={{ marginRight:8 }}>· 📱 {student.phone}</span>}
+                </div>
+              </div>
+              <div style={{ display:"flex",flexDirection:"column",gap:5,flexShrink:0 }}>
+                {!f.done && (
+                  <>
+                    {student?.phone && (
+                      <a href={`https://wa.me/${student.phone.replace(/[^0-9+]/g,"")}`} target="_blank" rel="noreferrer"
+                        style={{ ...S.btnGreen,padding:"5px 10px",fontSize:11,textDecoration:"none" }}>📱</a>
+                    )}
+                    <button style={{ ...S.btn,padding:"5px 10px",fontSize:11 }}
+                      onClick={()=>save(followUps.map(x=>x.id===f.id?{...x,done:true,doneAt:new Date().toISOString()}:x))}>
+                      ✅ تم
+                    </button>
+                  </>
+                )}
+                <button style={{ background:"none",border:"none",cursor:"pointer",color:"rgba(255,255,255,0.3)",fontSize:14 }}
+                  onClick={()=>save(followUps.filter(x=>x.id!==f.id))}>🗑️</button>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Modal */}
+      {modal && (
+        <div style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:99 }} onClick={()=>setModal(false)}>
+          <div style={{ background:"#162035",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,padding:22,width:440,maxWidth:"92%" }} onClick={e=>e.stopPropagation()}>
+            <div style={{ fontWeight:800,fontSize:15,marginBottom:14 }}>🔄 متابعة جديدة</div>
+            <div style={{ marginBottom:10 }}>
+              <label style={S.label}>العميل *</label>
+              <select style={{ ...S.input,cursor:"pointer" }} value={form.studentEmail} onChange={e=>setForm(f=>({...f,studentEmail:e.target.value}))}>
+                <option value="">— اختر عميلاً —</option>
+                {allStudents.map(s=><option key={s.email} value={s.email}>{s.name}{s.phone?` · ${s.phone}`:""}</option>)}
+              </select>
+            </div>
+            <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10 }}>
+              <div>
+                <label style={S.label}>نوع المتابعة</label>
+                <select style={{ ...S.input,cursor:"pointer" }} value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))}>
+                  {["مكالمة","واتساب","إيميل","اجتماع","متابعة"].map(t=><option key={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={S.label}>تعيين لـ</label>
+                <select style={{ ...S.input,cursor:"pointer" }} value={form.assignedTo} onChange={e=>setForm(f=>({...f,assignedTo:e.target.value}))}>
+                  <option value="">— لي —</option>
+                  {staffList.map(s=><option key={s.id} value={s.email}>{s.name}</option>)}
+                </select>
+              </div>
+            </div>
+            <div style={{ marginBottom:10 }}>
+              <label style={S.label}>التاريخ والوقت *</label>
+              <input type="datetime-local" style={S.input} value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))} />
+            </div>
+            <div style={{ marginBottom:14 }}>
+              <label style={S.label}>ملاحظة</label>
+              <textarea style={{ ...S.textarea,minHeight:60 }} value={form.note} onChange={e=>setForm(f=>({...f,note:e.target.value}))} placeholder="وصف المتابعة..." />
+            </div>
+            <div style={{ display:"flex",gap:8,justifyContent:"flex-end" }}>
+              <button style={S.btnOut} onClick={()=>setModal(false)}>إلغاء</button>
+              <button style={S.btn} onClick={addFollowUp}>💾 حفظ</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Search Tab ───────────────────────────────────────────────────────────────
+function SearchTab({ allStudents, staffInfo, setSelectedEmail, setActiveTab, S }) {
+  const [query, setQuery]   = useState("");
+  const [results, setResults] = useState([]);
+  const [searched, setSearched] = useState(false);
+  const inputRef = useRef();
+
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
+  const doSearch = (q) => {
+    if (!q.trim()) { setResults([]); setSearched(false); return; }
+    const lower = q.toLowerCase();
+    const found = allStudents.filter(s =>
+      s.name?.toLowerCase().includes(lower) ||
+      s.email?.toLowerCase().includes(lower) ||
+      s.phone?.includes(q) ||
+      s.scholarship?.toLowerCase().includes(lower) ||
+      s.serviceType?.toLowerCase().includes(lower) ||
+      s.country?.toLowerCase().includes(lower) ||
+      s.status?.includes(lower)
+    );
+    // بحث في المهام
+    const tasks = (() => { try { return JSON.parse(localStorage.getItem("masar_tasks")||"[]"); } catch { return []; } })();
+    const foundTasks = tasks.filter(t => t.title?.toLowerCase().includes(lower));
+    // بحث في المتابعات
+    const followUps = (() => { try { return JSON.parse(localStorage.getItem("masar_followups")||"[]"); } catch { return []; } })();
+    const foundFups = followUps.filter(f => f.note?.toLowerCase().includes(lower) || allStudents.find(s=>s.email===f.studentEmail)?.name?.toLowerCase().includes(lower));
+    setResults({ students: found, tasks: foundTasks, followUps: foundFups });
+    setSearched(true);
+  };
+
+  const totalResults = searched ? (results.students?.length||0) + (results.tasks?.length||0) + (results.followUps?.length||0) : 0;
+
+  return (
+    <div>
+      {/* Search Box */}
+      <div style={{ ...S.card,marginBottom:16 }}>
+        <div style={{ fontWeight:700,fontSize:14,marginBottom:12 }}>🔍 البحث الشامل</div>
+        <div style={{ position:"relative" }}>
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={e => { setQuery(e.target.value); doSearch(e.target.value); }}
+            placeholder="ابحث بالاسم، الإيميل، الهاتف، المنحة، الخدمة، البلد..."
+            style={{ ...S.input, padding:"12px 44px 12px 14px", fontSize:14 }}
+            onKeyDown={e => e.key==="Enter" && doSearch(query)}
+          />
+          <i className="ti ti-search" style={{ position:"absolute",left:14,top:"50%",transform:"translateY(-50%)",fontSize:18,color:"rgba(255,255,255,0.3)" }} />
+          {query && <button onClick={()=>{ setQuery(""); setResults([]); setSearched(false); }} style={{ position:"absolute",right:14,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",color:"rgba(255,255,255,0.4)",fontSize:18 }}>✕</button>}
+        </div>
+        {searched && <div style={{ fontSize:12,color:"rgba(255,255,255,0.4)",marginTop:8 }}>نتائج البحث عن "{query}": {totalResults} نتيجة</div>}
+      </div>
+
+      {/* No results */}
+      {searched && totalResults === 0 && (
+        <div style={{ ...S.card,textAlign:"center",padding:"32px 0",color:"rgba(255,255,255,0.3)" }}>
+          <div style={{ fontSize:32,marginBottom:8 }}>🔍</div>
+          <div>لا توجد نتائج لـ "{query}"</div>
+        </div>
+      )}
+
+      {/* نتائج الطلاب */}
+      {(results.students?.length||0) > 0 && (
+        <div style={{ marginBottom:14 }}>
+          <div style={{ fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.4)",marginBottom:8,padding:"0 4px" }}>👥 طلاب ({results.students.length})</div>
+          {results.students.map(s => (
+            <div key={s.email} style={{ ...S.card,marginBottom:6,cursor:"pointer",display:"flex",alignItems:"center",gap:12 }}
+              onClick={()=>{ setSelectedEmail(s.email); setActiveTab("students"); }}>
+              <div style={{ width:36,height:36,borderRadius:"50%",background:"#C8932B",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:800,color:"#13213B",flexShrink:0,overflow:"hidden" }}>
+                {s.photo?<img src={s.photo} style={{ width:"100%",height:"100%",objectFit:"cover" }} alt="" />:s.name?.[0]||"؟"}
+              </div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontWeight:700,fontSize:13 }}>{s.name}</div>
+                <div style={{ fontSize:11,color:"rgba(255,255,255,0.4)",marginTop:1 }}>
+                  {s.email}{s.phone&&` · ${s.phone}`}{s.scholarship&&` · ${s.scholarship}`}
+                </div>
+              </div>
+              <span style={{ fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:700,
+                background:s.status==="registered"?"rgba(107,93,211,0.15)":s.status==="potential"?"rgba(200,147,43,0.12)":"rgba(232,130,58,0.12)",
+                color:s.status==="registered"?"#6B5DD3":s.status==="potential"?"#C8932B":"#E8823A" }}>
+                {s.status==="registered"?"مسجل":s.status==="potential"?"محتمل":"جديد"}
+              </span>
+              <i className="ti ti-arrow-left" style={{ fontSize:13,color:"rgba(255,255,255,0.2)" }} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* نتائج المهام */}
+      {(results.tasks?.length||0) > 0 && (
+        <div style={{ marginBottom:14 }}>
+          <div style={{ fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.4)",marginBottom:8,padding:"0 4px" }}>✅ مهام ({results.tasks.length})</div>
+          {results.tasks.map(t => (
+            <div key={t.id} style={{ ...S.card,marginBottom:6,display:"flex",alignItems:"center",gap:12 }}>
+              <span style={{ fontSize:20 }}>{t.done?"✅":"🔲"}</span>
+              <div style={{ flex:1 }}>
+                <div style={{ fontWeight:700,fontSize:13,textDecoration:t.done?"line-through":"none",opacity:t.done?.6:1 }}>{t.title}</div>
+                {t.dueDate && <div style={{ fontSize:11,color:new Date(t.dueDate)<new Date()&&!t.done?"#e84545":"rgba(255,255,255,0.4)" }}>📅 {new Date(t.dueDate).toLocaleDateString("ar-EG")}</div>}
+              </div>
+              <span style={{ fontSize:10.5,padding:"2px 8px",borderRadius:99,background:t.priority==="high"?"rgba(232,69,69,0.12)":t.priority==="low"?"rgba(47,123,110,0.12)":"rgba(200,147,43,0.12)",color:t.priority==="high"?"#e84545":t.priority==="low"?"#2F7B6E":"#C8932B",fontWeight:700 }}>
+                {t.priority==="high"?"عالية":t.priority==="low"?"منخفضة":"متوسطة"}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* نتائج المتابعات */}
+      {(results.followUps?.length||0) > 0 && (
+        <div style={{ marginBottom:14 }}>
+          <div style={{ fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.4)",marginBottom:8,padding:"0 4px" }}>🔄 متابعات ({results.followUps.length})</div>
+          {results.followUps.map(f => {
+            const st = allStudents.find(s=>s.email===f.studentEmail);
+            const isOverdue = !f.done && f.date && new Date(f.date) < new Date();
+            return (
+              <div key={f.id} style={{ ...S.card,marginBottom:6,display:"flex",alignItems:"center",gap:12,
+                borderColor:isOverdue?"rgba(232,69,69,0.3)":undefined,background:isOverdue?"rgba(232,69,69,0.04)":undefined }}>
+                <span style={{ fontSize:20 }}>{f.type==="مكالمة"?"📞":f.type==="واتساب"?"📱":"🔄"}</span>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontWeight:700,fontSize:13 }}>{st?.name||f.studentEmail}</div>
+                  <div style={{ fontSize:11,color:"rgba(255,255,255,0.4)" }}>{f.note||f.type}{f.date&&` · ${new Date(f.date).toLocaleDateString("ar-EG")}`}</div>
+                </div>
+                {isOverdue && <span style={{ fontSize:11,color:"#e84545",fontWeight:700 }}>متأخرة</span>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* قبل البحث */}
+      {!searched && (
+        <div style={{ ...S.card,textAlign:"center",padding:"32px 0",color:"rgba(255,255,255,0.3)" }}>
+          <div style={{ fontSize:40,marginBottom:10 }}>🔍</div>
+          <div style={{ fontSize:13,marginBottom:6 }}>ابحث في كل شيء</div>
+          <div style={{ fontSize:11,lineHeight:1.8 }}>الطلاب · المهام · المتابعات · المنح · الخدمات</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Finance Tab ──────────────────────────────────────────────────────────────
+function FinanceTab({ allStudents, S }) {
+  const [expenses, setExpenses] = useState(()=>{ try{return JSON.parse(localStorage.getItem("masar_expenses")||"[]");}catch{return [];} });
+  const [modal, setModal]   = useState(false);
+  const [form, setForm]     = useState({ title:"", amount:"", category:"تسويق", date:new Date().toISOString().split("T")[0], note:"" });
+  const [period, setPeriod] = useState("all");
+  const [activeTab, setTab] = useState("overview");
+
+  const CATEGORIES = ["تسويق","إعلانات","موظفون","صيانة","مستلزمات مكتبية","برامج وتقنية","إيجار","أخرى"];
+  const CAT_ICON   = { "تسويق":"📣","إعلانات":"📢","موظفون":"👥","صيانة":"🔧","مستلزمات مكتبية":"📎","برامج وتقنية":"💻","إيجار":"🏢","أخرى":"📦" };
+
+  const saveExpenses = (list) => { setExpenses(list); localStorage.setItem("masar_expenses", JSON.stringify(list)); };
+
+  // حساب الإيرادات من مدفوعات العملاء
+  const revenue     = allStudents.reduce((sum,s)=>sum+(parseFloat(s.paidAmount)||0), 0);
+  const totalExpect = allStudents.reduce((sum,s)=>sum+(parseFloat(s.totalAmount)||0), 0);
+  const remaining   = totalExpect - revenue;
+
+  // فلترة حسب الفترة
+  const filterByPeriod = (items) => {
+    if (period==="all") return items;
+    const now = new Date();
+    const start = period==="month" ? new Date(now.getFullYear(),now.getMonth(),1) :
+                  period==="quarter" ? new Date(now.getFullYear(),Math.floor(now.getMonth()/3)*3,1) :
+                  new Date(now.getFullYear(),0,1);
+    return items.filter(i=>new Date(i.date)>=start);
+  };
+
+  const filteredExpenses = filterByPeriod(expenses);
+  const totalExpenses    = filteredExpenses.reduce((sum,e)=>sum+(parseFloat(e.amount)||0), 0);
+  const filteredRevenue  = filterByPeriod(allStudents.filter(s=>s.paidAmount).map(s=>({ date:s.createdAt, amount:s.paidAmount }))).reduce((sum,r)=>sum+(parseFloat(r.amount)||0), 0);
+  const netProfit        = filteredRevenue - totalExpenses;
+
+  // مصاريف حسب الفئة
+  const expByCategory = {};
+  filteredExpenses.forEach(e=>{ expByCategory[e.category]=(expByCategory[e.category]||0)+(parseFloat(e.amount)||0); });
+
+  return (
+    <div>
+      {/* Period Filter */}
+      <div style={{ display:"flex",gap:8,marginBottom:16,alignItems:"center" }}>
+        {[["all","كل الوقت"],["month","هذا الشهر"],["quarter","هذا الربع"],["year","هذه السنة"]].map(([v,l])=>(
+          <button key={v} onClick={()=>setPeriod(v)} style={{ padding:"6px 14px",borderRadius:8,border:period===v?"none":"1px solid rgba(255,255,255,0.12)",background:period===v?"#C8932B":"none",color:period===v?"#13213B":"rgba(255,255,255,0.6)",cursor:"pointer",fontFamily:"inherit",fontSize:12,fontWeight:700 }}>{l}</button>
+        ))}
+        <div style={{ marginRight:"auto",display:"flex",gap:6 }}>
+          {[["overview","📊 نظرة"],["expenses","💸 المصاريف"],["income","💰 الإيرادات"]].map(([v,l])=>(
+            <button key={v} onClick={()=>setTab(v)} style={{ padding:"6px 14px",borderRadius:8,border:activeTab===v?"none":"1px solid rgba(255,255,255,0.12)",background:activeTab===v?"#2F7B6E":"none",color:activeTab===v?"#fff":"rgba(255,255,255,0.6)",cursor:"pointer",fontFamily:"inherit",fontSize:12,fontWeight:700 }}>{l}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      {(() => {
+        const egpRevenue = allStudents.filter(s=>s.paidAmount&&(!s.paidCurrency||s.paidCurrency==="EGP")).reduce((sum,s)=>sum+(parseFloat(s.paidAmount)||0),0);
+        const usdRevenue = allStudents.filter(s=>s.paidAmount&&s.paidCurrency==="USD").reduce((sum,s)=>sum+(parseFloat(s.paidAmount)||0),0);
+        const eurRevenue = allStudents.filter(s=>s.paidAmount&&s.paidCurrency==="EUR").reduce((sum,s)=>sum+(parseFloat(s.paidAmount)||0),0);
+        return (
+          <div style={{ ...S.card,marginBottom:12,padding:"12px 16px" }}>
+            <div style={{ fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.4)",marginBottom:10 }}>💱 توزيع الإيرادات حسب العملة</div>
+            <div style={{ display:"flex",gap:20,flexWrap:"wrap" }}>
+              {egpRevenue>0 && <div><div style={{ fontSize:20,fontWeight:800,color:"#2F7B6E" }}>{egpRevenue.toLocaleString()}</div><div style={{ fontSize:11,color:"rgba(255,255,255,0.4)" }}>جنيه مصري 🇪🇬</div></div>}
+              {usdRevenue>0 && <div><div style={{ fontSize:20,fontWeight:800,color:"#C8932B" }}>${usdRevenue.toLocaleString()}</div><div style={{ fontSize:11,color:"rgba(255,255,255,0.4)" }}>دولار أمريكي 🇺🇸</div></div>}
+              {eurRevenue>0 && <div><div style={{ fontSize:20,fontWeight:800,color:"#6B5DD3" }}>€{eurRevenue.toLocaleString()}</div><div style={{ fontSize:11,color:"rgba(255,255,255,0.4)" }}>يورو 🇪🇺</div></div>}
+            </div>
+          </div>
+        );
+      })()}
+      <div style={{ display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:16 }}>
+        {[
+          { label:"إجمالي الإيرادات",  num:filteredRevenue.toLocaleString()+" ج", color:"#2F7B6E", icon:"📈" },
+          { label:"إجمالي المصاريف",   num:totalExpenses.toLocaleString()+" ج",  color:"#e84545",  icon:"📉" },
+          { label:"صافي الربح",        num:netProfit.toLocaleString()+" ج",      color:netProfit>=0?"#2F7B6E":"#e84545", icon:"💰" },
+          { label:"إيرادات متوقعة",    num:totalExpect.toLocaleString()+" ج",    color:"#C8932B",  icon:"🎯" },
+        ].map((s,i)=>(
+          <div key={i} style={{ ...S.card,marginBottom:0 }}>
+            <div style={{ fontSize:18,marginBottom:6 }}>{s.icon}</div>
+            <div style={{ fontSize:20,fontWeight:800,color:s.color,lineHeight:1 }}>{s.num}</div>
+            <div style={{ fontSize:11,color:"rgba(255,255,255,0.45)",marginTop:3 }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── نظرة عامة ── */}
+      {activeTab==="overview" && (
+        <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:14 }}>
+          {/* توزيع المصاريف */}
+          <div style={S.card}>
+            <div style={{ fontWeight:700,fontSize:13,marginBottom:14 }}>💸 توزيع المصاريف حسب الفئة</div>
+            {Object.keys(expByCategory).length===0 ? (
+              <div style={{ textAlign:"center",color:"rgba(255,255,255,0.3)",padding:"16px 0",fontSize:12 }}>لا توجد مصاريف مسجلة</div>
+            ) : Object.entries(expByCategory).sort((a,b)=>b[1]-a[1]).map(([cat,amt])=>(
+              <div key={cat} style={{ display:"flex",alignItems:"center",gap:10,padding:"7px 0",borderBottom:"1px solid rgba(255,255,255,0.05)" }}>
+                <span style={{ fontSize:16 }}>{CAT_ICON[cat]||"📦"}</span>
+                <span style={{ flex:1,fontSize:12.5 }}>{cat}</span>
+                <div style={{ width:80,height:5,borderRadius:99,background:"rgba(255,255,255,0.07)",overflow:"hidden" }}>
+                  <div style={{ height:"100%",background:"#e84545",width:`${totalExpenses?amt/totalExpenses*100:0}%`,borderRadius:99 }} />
+                </div>
+                <span style={{ fontSize:12,fontWeight:700,color:"#e84545",minWidth:70,textAlign:"left" }}>{amt.toLocaleString()} ج</span>
+              </div>
+            ))}
+          </div>
+
+          {/* ملخص مالي */}
+          <div style={S.card}>
+            <div style={{ fontWeight:700,fontSize:13,marginBottom:14 }}>📊 الملخص المالي</div>
+            {[
+              { label:"إيرادات محصلة",    val:filteredRevenue, color:"#2F7B6E", bar:true },
+              { label:"إيرادات متوقعة",   val:totalExpect,     color:"#C8932B", bar:false },
+              { label:"إجمالي مصاريف",    val:totalExpenses,   color:"#e84545", bar:true },
+              { label:"صافي الربح",       val:netProfit,       color:netProfit>=0?"#2F7B6E":"#e84545", bar:false },
+              { label:"متبقي من العملاء", val:remaining,       color:"#6B5DD3", bar:false },
+            ].map(item=>(
+              <div key={item.label} style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"7px 0",borderBottom:"1px solid rgba(255,255,255,0.05)" }}>
+                <span style={{ fontSize:12,color:"rgba(255,255,255,0.6)" }}>{item.label}</span>
+                <span style={{ fontSize:13,fontWeight:800,color:item.color }}>{item.val.toLocaleString()} ج</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── المصاريف ── */}
+      {activeTab==="expenses" && (
+        <div>
+          <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12 }}>
+            <span style={{ fontWeight:700,fontSize:13 }}>💸 سجل المصاريف ({filteredExpenses.length})</span>
+            <button style={S.btn} onClick={()=>setModal(true)}><i className="ti ti-plus" style={{ fontSize:13 }} /> مصروف جديد</button>
+          </div>
+          {filteredExpenses.length===0 ? (
+            <div style={{ ...S.card,textAlign:"center",padding:"32px 0",color:"rgba(255,255,255,0.3)" }}>
+              <div style={{ fontSize:32,marginBottom:8 }}>💸</div>لا توجد مصاريف مسجلة
+            </div>
+          ) : (
+            <div style={S.card}>
+              <table style={{ width:"100%",borderCollapse:"collapse",fontSize:12.5 }}>
+                <thead>
+                  <tr>{["الوصف","الفئة","المبلغ","التاريخ","ملاحظة",""].map(h=>(
+                    <th key={h} style={{ padding:"7px 10px",textAlign:"right",fontSize:10.5,fontWeight:700,color:"rgba(255,255,255,0.35)",borderBottom:"1px solid rgba(255,255,255,0.07)" }}>{h}</th>
+                  ))}</tr>
+                </thead>
+                <tbody>
+                  {[...filteredExpenses].sort((a,b)=>new Date(b.date)-new Date(a.date)).map(e=>(
+                    <tr key={e.id}>
+                      <td style={{ padding:"9px 10px",fontWeight:700 }}>{e.title}</td>
+                      <td style={{ padding:"9px 10px" }}>
+                        <span style={{ fontSize:11,padding:"2px 8px",borderRadius:99,background:"rgba(232,69,69,0.12)",color:"#e84545",fontWeight:700 }}>
+                          {CAT_ICON[e.category]||"📦"} {e.category}
+                        </span>
+                      </td>
+                      <td style={{ padding:"9px 10px",fontWeight:700,color:"#e84545" }}>{parseFloat(e.amount).toLocaleString()} ج</td>
+                      <td style={{ padding:"9px 10px",fontSize:11,color:"rgba(255,255,255,0.45)" }}>{new Date(e.date).toLocaleDateString("ar-EG")}</td>
+                      <td style={{ padding:"9px 10px",fontSize:11,color:"rgba(255,255,255,0.4)" }}>{e.note||"—"}</td>
+                      <td style={{ padding:"9px 10px" }}>
+                        <button onClick={()=>saveExpenses(expenses.filter(x=>x.id!==e.id))} style={{ background:"none",border:"none",cursor:"pointer",color:"rgba(255,255,255,0.3)",fontSize:14 }}>🗑️</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td colSpan={2} style={{ padding:"10px",fontWeight:700,color:"rgba(255,255,255,0.6)",fontSize:12 }}>الإجمالي</td>
+                    <td style={{ padding:"10px",fontWeight:800,color:"#e84545",fontSize:14 }}>{totalExpenses.toLocaleString()} ج</td>
+                    <td colSpan={3}></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── الإيرادات ── */}
+      {activeTab==="income" && (
+        <div>
+          <div style={{ fontWeight:700,fontSize:13,marginBottom:12 }}>💰 إيرادات العملاء</div>
+          <div style={S.card}>
+            <table style={{ width:"100%",borderCollapse:"collapse",fontSize:12.5 }}>
+              <thead>
+                <tr>{["العميل","الخدمة","المدفوع","الكلي","المتبقي","الحالة"].map(h=>(
+                  <th key={h} style={{ padding:"7px 10px",textAlign:"right",fontSize:10.5,fontWeight:700,color:"rgba(255,255,255,0.35)",borderBottom:"1px solid rgba(255,255,255,0.07)" }}>{h}</th>
+                ))}</tr>
+              </thead>
+              <tbody>
+                {allStudents.filter(s=>s.paidAmount).sort((a,b)=>(parseFloat(b.paidAmount)||0)-(parseFloat(a.paidAmount)||0)).map(s=>{
+                  const rem = s.totalAmount ? parseFloat(s.totalAmount)-parseFloat(s.paidAmount||0) : null;
+                  return (
+                    <tr key={s.email}>
+                      <td style={{ padding:"9px 10px",fontWeight:700 }}>{s.name}</td>
+                      <td style={{ padding:"9px 10px",fontSize:11,color:"rgba(255,255,255,0.5)" }}>{s.serviceType||s.scholarship||"—"}</td>
+                      <td style={{ padding:"9px 10px",fontWeight:700,color:"#2F7B6E" }}>
+                        {parseFloat(s.paidAmount).toLocaleString()} {s.paidCurrency==="USD"?"$":s.paidCurrency==="EUR"?"€":s.paidCurrency==="GBP"?"£":"ج"}
+                      </td>
+                      <td style={{ padding:"9px 10px",color:"rgba(255,255,255,0.5)" }}>
+                        {s.totalAmount?`${parseFloat(s.totalAmount).toLocaleString()} ${s.totalCurrency==="USD"?"$":s.totalCurrency==="EUR"?"€":"ج"}`:"—"}
+                      </td>
+                      <td style={{ padding:"9px 10px",color:rem>0?"#e84545":"#2F7B6E",fontWeight:700 }}>{rem!==null?rem.toLocaleString()+" ج":"—"}</td>
+                      <td style={{ padding:"9px 10px" }}>
+                        <span style={{ fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:700,background:s.paymentStatus==="full"?"rgba(47,123,110,0.15)":"rgba(200,147,43,0.15)",color:s.paymentStatus==="full"?"#2F7B6E":"#C8932B" }}>
+                          {s.paymentStatus==="full"?"✅ مكتمل":"⚠️ جزئي"}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colSpan={2} style={{ padding:"10px",fontWeight:700,color:"rgba(255,255,255,0.6)",fontSize:12 }}>الإجمالي</td>
+                  <td style={{ padding:"10px",fontWeight:800,color:"#2F7B6E",fontSize:14 }}>{revenue.toLocaleString()} ج</td>
+                  <td style={{ padding:"10px",fontWeight:800,color:"#C8932B",fontSize:13 }}>{totalExpect.toLocaleString()} ج</td>
+                  <td style={{ padding:"10px",fontWeight:800,color:remaining>0?"#e84545":"#2F7B6E",fontSize:13 }}>{remaining.toLocaleString()} ج</td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          {/* زر تصدير */}
+          <div style={{ marginTop:12,display:"flex",justifyContent:"flex-end" }}>
+            <button style={S.btn} onClick={()=>{
+              const rows = allStudents.filter(s=>s.paidAmount).map(s=>({ "الاسم":s.name,"الخدمة":s.serviceType||s.scholarship||"","المدفوع":s.paidAmount,"الكلي":s.totalAmount||"","الحالة":s.paymentStatus==="full"?"مكتمل":"جزئي" }));
+              const h=Object.keys(rows[0]||{}); const csv=[h.join(","),...rows.map(r=>h.map(k=>`"${r[k]}"`).join(","))].join("\n");
+              const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob(["\uFEFF"+csv],{type:"text/csv"})); a.download="الإيرادات.csv"; a.click();
+            }}>📥 تصدير CSV</button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal إضافة مصروف */}
+      {modal && (
+        <div style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:99 }} onClick={()=>setModal(false)}>
+          <div style={{ background:"#162035",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,padding:22,width:420,maxWidth:"92%" }} onClick={e=>e.stopPropagation()}>
+            <div style={{ fontWeight:800,fontSize:15,marginBottom:14 }}>💸 تسجيل مصروف جديد</div>
+            <div style={{ marginBottom:10 }}>
+              <label style={S.label}>الوصف *</label>
+              <input style={S.input} value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} placeholder="مثال: تكلفة حملة فيسبوك" />
+            </div>
+            <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10 }}>
+              <div>
+                <label style={S.label}>المبلغ (ج) *</label>
+                <input type="number" style={S.input} value={form.amount} onChange={e=>setForm(f=>({...f,amount:e.target.value}))} placeholder="0" />
+              </div>
+              <div>
+                <label style={S.label}>التاريخ</label>
+                <input type="date" style={S.input} value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))} />
+              </div>
+            </div>
+            <div style={{ marginBottom:10 }}>
+              <label style={S.label}>الفئة</label>
+              <select style={{ ...S.input,cursor:"pointer" }} value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))}>
+                {CATEGORIES.map(c=><option key={c}>{c}</option>)}
+              </select>
+            </div>
+            <div style={{ marginBottom:14 }}>
+              <label style={S.label}>ملاحظة (اختياري)</label>
+              <input style={S.input} value={form.note} onChange={e=>setForm(f=>({...f,note:e.target.value}))} placeholder="تفاصيل إضافية..." />
+            </div>
+            <div style={{ display:"flex",gap:8,justifyContent:"flex-end" }}>
+              <button style={S.btnOut} onClick={()=>setModal(false)}>إلغاء</button>
+              <button style={S.btn} onClick={()=>{
+                if (!form.title||!form.amount){alert("يرجى ملء الحقول المطلوبة");return;}
+                saveExpenses([...expenses,{...form,id:Date.now().toString()}]);
+                setModal(false); setForm({title:"",amount:"",category:"تسويق",date:new Date().toISOString().split("T")[0],note:""});
+              }}>💾 حفظ</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

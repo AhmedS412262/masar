@@ -67,7 +67,7 @@ export const UI = {
 const T = {
   ar: {
     dir: "rtl",
-    brand: "مسار",
+    brand: "قَبول",
     nav: { 
       home: "الرئيسية", 
       about: "من نحن", 
@@ -159,7 +159,7 @@ const T = {
   },
   en: {
     dir: "ltr",
-    brand: "Masar",
+    brand: "Qbool",
     nav: { 
       home: "Home", 
       about: "About", 
